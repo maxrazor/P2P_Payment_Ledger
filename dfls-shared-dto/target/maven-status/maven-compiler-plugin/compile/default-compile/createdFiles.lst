@@ -1,0 +1,14 @@
+com\dfls\shared\dto\TransferRequest.class
+com\dfls\shared\exception\DuplicateAccountException.class
+com\dfls\shared\exception\InsufficientFundsException.class
+com\dfls\shared\event\UserRegisteredEvent.class
+com\dfls\shared\dto\BalanceResponse.class
+com\dfls\shared\event\EventType.class
+com\dfls\shared\event\TransferCompletedPayload.class
+com\dfls\shared\event\KafkaEvent.class
+com\dfls\shared\dto\TransferCompletedPayload.class
+com\dfls\shared\exception\AccountNotFoundException.class
+com\dfls\shared\dto\AccountResponse.class
+com\dfls\shared\exception\IdempotencyConflictException.class
+com\dfls\shared\dto\RegistrationRequest.class
+com\dfls\shared\exception\LimitExceededException.class

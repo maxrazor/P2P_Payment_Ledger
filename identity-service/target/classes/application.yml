@@ -1,0 +1,46 @@
+server:
+  port: 8081
+
+gateway:
+  secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+spring:
+  application:
+    name: identity-service
+
+  kafka:
+    bootstrap-servers: localhost:9092 # Point to your Docker container [5]
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        # ⚠️ CRITICAL FINTECH SAFETY CHECK:
+        # Tell Spring it is safe to deserialize Java classes located inside your shared package path
+        '[spring.json.trusted.packages]': "com.dfls.shared.event"
+        
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dfls_identity
+    username: postgres
+    password: weoW#$EOGIJHWt&34jto3pwij
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect

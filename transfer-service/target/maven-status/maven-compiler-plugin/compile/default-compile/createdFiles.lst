@@ -1,0 +1,13 @@
+com\dfls\transfer_service\repository\TransactionRepository.class
+com\dfls\transfer_service\outbox\OutboxStatus.class
+com\dfls\transfer_service\service\TransferService.class
+com\dfls\transfer_service\config\TransferKafkaProducer.class
+com\dfls\transfer_service\TransferServiceApplication.class
+com\dfls\transfer_service\model\Transaction$TransactionBuilder.class
+com\dfls\transfer_service\outbox\OutboxEvent.class
+com\dfls\transfer_service\controller\TransferController.class
+com\dfls\transfer_service\config\KafkaTopicConfig.class
+com\dfls\transfer_service\outbox\OutboxPublisher.class
+com\dfls\transfer_service\model\TransactionStatus.class
+com\dfls\transfer_service\outbox\OutboxRepository.class
+com\dfls\transfer_service\model\Transaction.class

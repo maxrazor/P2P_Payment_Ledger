@@ -1,0 +1,88 @@
+server:
+  port: 8080 # The public entry point for your entire ecosystem
+
+logging:
+  level:
+    "[org.springframework.cloud.gateway]": TRACE
+    "[org.springframework.http.server.reactive]": DEBUG
+    "[reactor.netty]": DEBUG
+  pattern:
+    level: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-}] [%X{spanId:-}] [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+spring:
+  application:
+    name: api-gateway
+
+  profiles:
+    active: dev
+
+  reactor:
+    context-propagation: AUTO
+  
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # 1. Route public auth requests directly to the Identity Service
+            - id: identity-service-route
+              uri: http://localhost:8081 # Location of identity-service in dev
+              predicates:
+                - Path=/api/v1/auth/**
+              filters:
+                # Injects the secret header into the HTTP request before forwarding
+                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+
+            # 2. Route protected transfer requests (Applies our custom Auth filter)
+            - id: transfer-service-route
+              uri: http://localhost:8082 # Location of transfer-service in dev
+              predicates:
+                - Path=/api/v1/transfers/**
+              filters:
+                - name: AuthenticationFilter
+                  args: {}
+
+            # 3. Route protected account/ledger requests
+            - id: account-service-route
+              uri: http://localhost:8083 # Location of account-service in dev
+              predicates:
+                - Path=/api/v1/accounts/**
+              filters:
+                - name: AuthenticationFilter
+                  args: {}
+
+
+          globalcors:
+            add-to-simple-url-handler-mapping: true 
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: "http://127.0.0.1:5173"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - Authorization
+                  - Content-Type
+                  - X-Idempotency-Key
+                allowCredentials: true
+
+jwt:
+  secret: "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8="
+  expiration: 86400000
