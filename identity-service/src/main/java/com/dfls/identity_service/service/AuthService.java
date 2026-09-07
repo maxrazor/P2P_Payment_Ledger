@@ -10,15 +10,18 @@ import com.dfls.identity_service.dto.AuthResponse;
 import com.dfls.identity_service.dto.LoginRequest;
 import com.dfls.identity_service.dto.RegisterRequest;
 import com.dfls.identity_service.dto.UserResponse;
+import com.dfls.identity_service.kafka.IdentityKafkaProducer;
 import com.dfls.identity_service.mapper.UserMapper;
 import com.dfls.identity_service.model.Role;
 import com.dfls.identity_service.model.SecurityUser;
 import com.dfls.identity_service.model.User;
 import com.dfls.identity_service.repository.UserRepository;
-import com.dfls.identity_service.config.IdentityKafkaProducer;
+import com.dfls.shared.exception.EmailAlreadyRegisteredException;
 
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class AuthService {
 
     private final UserMapper userMapper;
@@ -28,27 +31,26 @@ public class AuthService {
     private final JwtService jwtService;
     private final IdentityKafkaProducer identityKafkaProducer;
 
-    //TODO: Fix to @AllArgsConstructor
     public AuthService(UserMapper userMapper, 
                         PasswordEncoder passwordEncoder, 
                         UserRepository userRepository, 
                         AuthenticationManager authManager,
                         JwtService jwtService,
-                        IdentityKafkaProducer identityKafkaProducer) {
-
+                        IdentityKafkaProducer identityKafkaProducer) 
+    {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.authManager = authManager;
         this.jwtService = jwtService;
         this.identityKafkaProducer = identityKafkaProducer;
-        
     }
 
+    //TODO: Maybe make @Transactional + @TransactionalEventListener
+
     public UserResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.username())) {
-            System.out.println("User already exists. Add an exception here");
-            //throw new DuplicateUserException("An account with this email address already exists.");
+        if (userRepository.existsByEmail(request.email())) {
+            throw new EmailAlreadyRegisteredException("An account with email address " + request.email() + " already exists.");
         }
         User user = userMapper.toEntity(request);
         user.setActive(true);
@@ -63,24 +65,8 @@ public class AuthService {
         Authentication authentication = authManager.authenticate(
             new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
+        log.info("Successful login for user: {}", request.email());
         SecurityUser userDetails = (SecurityUser) authentication.getPrincipal();
         return new AuthResponse(jwtService.generateToken(userDetails), userMapper.toResponse(userDetails.getUser()));
     }
-
-            /* 
-        // 4. EAST-WEST HANDOFF: Build the immutable Kafka event payload
-        MoneyTransferredEvent kafkaEvent = new MoneyTransferredEvent(
-                savedTransaction.getId(),
-                request.sourceAccountId(),
-                request.destinationAccountId(),
-                request.amount(),
-                request.currency(),
-                Instant.now()
-        );
-
-        // Emit the message asynchronously to Kafka. Account Service is listening.
-        kafkaTemplate.send("transfer-requests-topic", savedTransaction.getId().toString(), kafkaEvent);
-        */
-
-
 }

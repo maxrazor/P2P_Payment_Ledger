@@ -11,15 +11,22 @@ import com.dfls.account_service.account.AccountRepository;
 import com.dfls.account_service.ledger.LedgerRepository;
 import com.dfls.account_service.ledger.LedgerService;
 import com.dfls.account_service.ledger.LedgerValidator;
+import com.dfls.account_service.ledger.ValidationResult;
 import com.dfls.account_service.outbox.OutboxService;
 import com.dfls.account_service.processed.ProcessedEvent;
 import com.dfls.account_service.processed.ProcessedEventRepository;
+import com.dfls.shared.dto.TransferInitiatedKafkaEvent;
+import com.dfls.shared.event.EventType;
+import com.dfls.shared.event.TransferInitiatedPayload;
 import com.dfls.shared.exception.AccountNotFoundException;
 
+import io.opentelemetry.api.trace.Span;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TransferProcessor {
 
     private final AccountRepository accountRepository;
@@ -30,12 +37,31 @@ public class TransferProcessor {
     private final LedgerService ledgerService;
 
     @Transactional
-    public void process(TransferRequestedEvent event) {
+    public void process(TransferInitiatedKafkaEvent kafkaEvent) {
 
-        //TODO: Add proper exception for idempotency
+        TransferInitiatedPayload event = kafkaEvent.payload();
 
-        if (processedEventRepository.existsByEventId(event.eventId())) {
-            return;
+        log.info(
+                "Processing transfer event eventId={} transferId={} senderAccountId={} receiverAccountId={} amount={} currency={}",
+                kafkaEvent.eventId(),
+                event.transferId(),
+                event.senderAccountId(),
+                event.receiverAccountId(),
+                event.amount(),
+                event.currency()
+        );
+
+        String traceId = Span.current()
+        .getSpanContext()
+        .getTraceId();
+
+        if (processedEventRepository.existsByEventId(kafkaEvent.eventId())) {
+            log.warn(
+                "Duplicate transfer event skipped eventId={} transferId={}",
+                kafkaEvent.eventId(),
+                event.transferId()
+            );
+            return; 
         }
 
         //Lock accounts in deterministic order
@@ -61,32 +87,45 @@ public class TransferProcessor {
         Account receiver = first.getId().equals(event.receiverAccountId())
                 ? first
                 : second;
-
-        if (sender.getId().equals(receiver.getId())) {
-            throw new IllegalArgumentException(
-                    "Sender and receiver cannot be the same account"
-            );
-        }
     
-        ledgerValidator.validateTransfer(sender, receiver, event);
+        ValidationResult validation = ledgerValidator.validateTransfer(sender, receiver, event);
+        if (!validation.isValid()) {
+            // Enters helper method smoothly, stays in the same transaction
+            rejectTransfer(kafkaEvent, sender.getUserId(), receiver.getUserId(), traceId, event, validation.rejectionReason()); 
+            return; // Transaction commits successfully here!
+        }
 
         BigDecimal balance = ledgerRepository.sumLedgerBalance(sender.getId(), event.currency());
-
         if (balance.compareTo(event.amount()) < 0) {
-            outboxService.createTransferCompleted(event, null, null, null);(event, "Insufficient funds");
-            processedEventRepository.save(
-                    new ProcessedEvent(event.eventId())
-            );
-            return;
+            rejectTransfer(kafkaEvent, sender.getUserId(), receiver.getUserId(), traceId, event, "Insufficient funds");
+            return; // Transaction commits successfully here!
         }
 
-        ledgerService.createDebit(sender.getId(), event.transferId(), event.amount(), event.currency());
-        ledgerService.createCredit(receiver.getId(), event.transferId(), event.amount(), event.currency());
+        ledgerService.createDebit(sender.getId(), event.transferId(), event.amount(), event.currency(), "Transfer DEBIT");
+        ledgerService.createCredit(receiver.getId(), event.transferId(), event.amount(), event.currency(), "Transfer CREDIT");
 
-        outboxService.createTransferCompleted(event);
+        outboxService.createTransferResult(kafkaEvent, sender.getUserId(), receiver.getUserId(), traceId, EventType.TRANSFER_COMPLETED, "Success");
 
-        processedEventRepository.save(
-                new ProcessedEvent(event.eventId())
+        processedEventRepository.save(new ProcessedEvent(kafkaEvent.eventId())
         );
+
+        log.info(
+            "Transfer processing completed successfully " +
+            "transferId={} eventId={}",
+            event.transferId(),
+            kafkaEvent.eventId()
+        );
+    }
+
+    private void rejectTransfer(TransferInitiatedKafkaEvent kafkaEvent, UUID senderUserId, UUID receiverUserId, String traceId, TransferInitiatedPayload event, String reason) {
+        log.info(
+            "Transfer rejected: transferId={} senderAccountId={} amount={} reason={}",
+            event.transferId(),
+            event.senderAccountId(),
+            event.amount(),
+            reason
+        );
+        outboxService.createTransferResult(kafkaEvent, senderUserId, receiverUserId, traceId, EventType.TRANSFER_REJECTED, reason);
+        processedEventRepository.save(new ProcessedEvent(kafkaEvent.eventId()));
     }
 }

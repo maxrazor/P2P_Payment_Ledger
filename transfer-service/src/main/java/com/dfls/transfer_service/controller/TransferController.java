@@ -10,16 +10,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dfls.shared.dto.TransferRequest;
-import com.dfls.transfer_service.service.TransferService;
+import com.dfls.transfer_service.model.Transaction;
+import com.dfls.transfer_service.service.TransferFacadeService;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/v1")
 public class TransferController {
 
-    private TransferService transferService;
+    private TransferFacadeService transferFacadeService;
 
-    public TransferController(TransferService transferService){
-        this.transferService = transferService;
+    public TransferController(TransferFacadeService transferFacadeService){
+        this.transferFacadeService = transferFacadeService;
     }
 
     @PostMapping("/transfers")
@@ -27,8 +31,20 @@ public class TransferController {
                                                  @RequestHeader("X-Idempotency-Key") String idempotencyKey,
                                                  @RequestBody TransferRequest request)
     {
-        transferService.processTransfer(userId, idempotencyKey, request);
+        
+        log.info(
+            "Transfer request received with Idempotency Key: {}", 
+            idempotencyKey
+        );
+
+        UUID accountId = transferFacadeService.resolveRecipientAccount(request.destinationEmail(), request.currency());
+        Transaction savedTransaction = transferFacadeService.handleTransfer(userId, idempotencyKey, request, accountId);
+
+        log.info(
+            "Transfer commited with transaction ID: {}", 
+            savedTransaction.getId()
+        );
+
         return ResponseEntity.ok().build();
     }
-
 }

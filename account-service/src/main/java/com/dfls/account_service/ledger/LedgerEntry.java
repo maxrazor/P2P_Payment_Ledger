@@ -43,6 +43,9 @@ public class LedgerEntry {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "description", nullable = false)
+    private String description;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();

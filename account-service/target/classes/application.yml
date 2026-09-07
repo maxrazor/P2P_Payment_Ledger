@@ -1,6 +1,9 @@
 server:
   port: 8083
 
+gateway:
+  secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+
 management:
   endpoints:
     web:
@@ -21,15 +24,20 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # This serializes your JsonNode directly into a JSON bytes payload
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+
     consumer:
       group-id: account-service-group # Collects instances into a load-balanced consumer pool
       auto-offset-reset: earliest     # Read from the beginning if a brand new group boots up
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
       properties:
-        # ⚠️ CRITICAL FINTECH SAFETY CHECK:
-        # Tell Spring it is safe to deserialize Java classes located inside your shared package path
-        '[spring.json.trusted.packages]': "com.dfls.shared.event"
+        # Instructs the serializer NOT to send type mappings in the message headers
+        '[spring.json.add.type.headers]': true
+        '[spring.json.trusted.packages]': "*"
 
   datasource:
     url: jdbc:postgresql://localhost:5432/dfls_account
@@ -40,7 +48,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

@@ -1,5 +1,12 @@
 server:
-  port: 8084
+  port: 8082
+
+gateway:
+  secret: '$2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m'
+
+services:
+  account-service:
+    url: http://localhost:8083
 
 management:
   endpoints:
@@ -19,13 +26,28 @@ spring:
   application:
     name: transfer-service
 
+  data:
+    redis:
+      host: localhost             # Change to 'localhost' if running locally
+      port: 6379                  # Default Redis port
+      password: "mytestpassword"   # The absolute password required by your server
+
   kafka:
-    bootstrap-servers: localhost:9092 # Point to your Docker container [5]
+    bootstrap-servers: localhost:9092
     producer:
-      # Converts the lookup key to a standard String format
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # Converts your Java DTOs/Records automatically into clean JSON strings
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      # This serializes your JsonNode directly into a JSON bytes payload
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+
+    consumer:
+      group-id: account-service-group # Collects instances into a load-balanced consumer pool
+      auto-offset-reset: earliest     # Read from the beginning if a brand new group boots up
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        # Instructs the serializer NOT to send type mappings in the message headers
+        '[spring.json.add.type.headers]': true
+        '[spring.json.trusted.packages]': "*"
 
   datasource:
     url: jdbc:postgresql://localhost:5432/dfls_transfer
@@ -36,7 +58,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

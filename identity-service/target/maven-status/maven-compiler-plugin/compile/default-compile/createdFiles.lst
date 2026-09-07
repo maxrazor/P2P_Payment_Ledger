@@ -1,8 +1,8 @@
-com\dfls\identity_service\config\IdentityKafkaProducer.class
 com\dfls\identity_service\controller\AuthController.class
 com\dfls\identity_service\dto\RegisterRequest.class
 com\dfls\identity_service\mapper\UserMapper.class
-com\dfls\identity_service\mapper\UserMapperImpl.class
+com\dfls\identity_service\exception\GlobalExceptionHandler.class
+com\dfls\identity_service\kafka\IdentityKafkaProducer.class
 com\dfls\identity_service\model\User.class
 com\dfls\identity_service\dto\UserResponse.class
 com\dfls\identity_service\model\Role.class
@@ -10,9 +10,9 @@ com\dfls\identity_service\model\User$UserBuilder.class
 com\dfls\identity_service\IdentityServiceApplication.class
 com\dfls\identity_service\dto\AuthResponse.class
 com\dfls\identity_service\service\JwtService.class
-com\dfls\identity_service\config\KafkaTopicConfig.class
 com\dfls\identity_service\repository\UserRepository.class
 com\dfls\identity_service\dto\LoginRequest.class
+com\dfls\identity_service\kafka\KafkaTopicConfig.class
 com\dfls\identity_service\service\AuthService.class
 com\dfls\identity_service\config\GatewayHeaderFilter.class
 com\dfls\identity_service\config\SecurityConfig.class

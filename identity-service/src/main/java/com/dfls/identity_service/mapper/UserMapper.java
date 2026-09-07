@@ -1,22 +1,43 @@
 package com.dfls.identity_service.mapper;
 
-
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-
+import org.springframework.stereotype.Component;
 import com.dfls.identity_service.dto.RegisterRequest;
 import com.dfls.identity_service.dto.UserResponse;
+import com.dfls.identity_service.model.Role;
 import com.dfls.identity_service.model.User;
 
-@Mapper(componentModel = "spring")
-public interface UserMapper {
+@Component
+public class UserMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "role", constant = "ROLE_MEMBER")
-    @Mapping(target = "active", expression = "java(true)")
-    User toEntity(RegisterRequest request);
+    public User toEntity(RegisterRequest request) {
+        if (request == null) {
+            return null;
+        }
 
-    //TODO: Fix mapping (auth handles register)
+        User user = new User();
 
-    UserResponse toResponse(User user);
+        // Custom mappings from your annotations
+        user.setRole(Role.ROLE_MEMBER);
+        user.setActive(true);
+
+        // Standard field-to-field mappings
+        user.setUsername(request.username());
+        user.setEmail(request.email());
+        user.setPassword(request.password());
+
+        return user;
+    }
+
+    public UserResponse toResponse(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        return new UserResponse(
+            user.getUsername(),
+            user.getEmail(),
+            user.getRole(),
+            user.getActive()
+        );
+    }
 }

@@ -3,6 +3,11 @@ package com.dfls.account_service.transfer;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import com.dfls.shared.dto.TransferInitiatedKafkaEvent;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Component
 public class TransferEventConsumer {
 
@@ -12,8 +17,24 @@ public class TransferEventConsumer {
         this.transferProcessor = transferProcessor;
     }
 
-    @KafkaListener(topics = "transfer-events-topic")
-    public void handleTransferRequested(TransferRequestedEvent event) {
+    @KafkaListener(topics = "transfer-requests-topic",
+        properties = {
+        "spring.json.value.default.type=com.dfls.shared.dto.TransferInitiatedKafkaEvent"
+    })
+    public void handleTransferRequested(TransferInitiatedKafkaEvent event) {
+
+        log.info(
+            "Received {} for transferId={}",
+            event.eventType(),
+            event.payload().transferId()
+        );
+
         transferProcessor.process(event);
+
+        log.info(
+            "Processed {} for transferId={} successfully",
+            event.eventType(),
+            event.payload().transferId()
+        );
     }
 }

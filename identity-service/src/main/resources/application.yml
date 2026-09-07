@@ -4,6 +4,10 @@ server:
 gateway:
   secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
 
+jwt:
+  secret: "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8="
+  expiration: 86400000
+
 management:
   endpoints:
     web:
@@ -24,6 +28,7 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092 # Point to your Docker container [5]
+    
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer

@@ -3,11 +3,12 @@ server:
 
 logging:
   level:
-    "[org.springframework.cloud.gateway]": TRACE
-    "[org.springframework.http.server.reactive]": DEBUG
-    "[reactor.netty]": DEBUG
+    "[org.springframework.cloud.gateway]": INFO
+    "[org.springframework.http.server.reactive]": INFO
+    "[reactor.netty]": INFO
+    "[com.dfls.api_gateway.filter]": DEBUG
   pattern:
-    level: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-}] [%X{spanId:-}] [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{trace_id:-}] [%X{span_id:-}] [%thread] %-5level %logger{36} - %msg%n"
 
 management:
   endpoints:
@@ -55,6 +56,7 @@ spring:
               filters:
                 - name: AuthenticationFilter
                   args: {}
+                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
 
             # 3. Route protected account/ledger requests
             - id: account-service-route
@@ -64,13 +66,23 @@ spring:
               filters:
                 - name: AuthenticationFilter
                   args: {}
+                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+
+            - id: notification-service
+              uri: http://localhost:8084
+              predicates:
+                - Path=/api/v1/notifications/**
+              filters:
+                - name: AuthenticationFilter
+                  args: {}
+                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
 
 
           globalcors:
             add-to-simple-url-handler-mapping: true 
             cors-configurations:
               '[/**]':
-                allowedOrigins: "http://127.0.0.1:5173"
+                allowedOrigins: "http://localhost:5173"
                 allowedMethods:
                   - GET
                   - POST
@@ -86,3 +98,6 @@ spring:
 jwt:
   secret: "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8="
   expiration: 86400000
+
+gateway:
+  secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m

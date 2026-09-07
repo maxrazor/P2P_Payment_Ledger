@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/accounts")
 public class AccountController {
@@ -35,6 +37,10 @@ public class AccountController {
     @GetMapping
     public ResponseEntity<List<Account>> getAccountsById(@RequestHeader("X-Authenticated-User-Id") UUID userId)
     {
+        log.debug(
+            "Accounts info requested for user ID: {}", 
+            userId
+        );
         List<Account> accounts = accountService.getAccountsById(userId);
         return new ResponseEntity<>(accounts, HttpStatus.CREATED);
     }

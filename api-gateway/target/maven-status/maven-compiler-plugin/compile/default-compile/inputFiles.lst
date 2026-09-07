@@ -1,3 +1,5 @@
 D:\Maven_Project_Test\dfls-root\api-gateway\src\main\java\com\dfls\api_gateway\ApiGatewayApplication.java
 D:\Maven_Project_Test\dfls-root\api-gateway\src\main\java\com\dfls\api_gateway\config\SecurityConfig.java
+D:\Maven_Project_Test\dfls-root\api-gateway\src\main\java\com\dfls\api_gateway\exception\GlobalErrorWebExceptionHandler.java
 D:\Maven_Project_Test\dfls-root\api-gateway\src\main\java\com\dfls\api_gateway\filter\AuthenticationFilter.java
+D:\Maven_Project_Test\dfls-root\api-gateway\src\main\java\com\dfls\api_gateway\filter\RequestLoggingFilter.java

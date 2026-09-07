@@ -2,9 +2,13 @@ package com.dfls.account_service.kafka;
 
 import com.dfls.account_service.account.AccountService;
 import com.dfls.shared.event.UserRegisteredEvent;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class UserRegistrationConsumer {
 
@@ -16,9 +20,15 @@ public class UserRegistrationConsumer {
 
     @KafkaListener(topics = "user-registrations-topic", groupId = "account-service-group")
     public void consumeUserRegistration(UserRegisteredEvent event) {
-        System.out.println("📬 Kafka Event Received! Creating account wallet for User ID: " + event.userId());
+
+        log.info(
+            "Received registration event for email {} at time: {}",
+            event.email(),
+            event.registeredAt()
+        );
         
         // Call your service to provision the empty USD ledger envelope wallet
-        accountService.createDefaultWallet(event.userId(), "USD");
+        accountService.createDefaultWallet(event.userId(), "USD", event.email());
+
     }
 }

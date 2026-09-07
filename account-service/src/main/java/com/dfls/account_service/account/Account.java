@@ -8,7 +8,7 @@ import java.util.UUID;
 @Table(name = "accounts",uniqueConstraints = {
         @UniqueConstraint(
             name = "uc_user_currency", // Optional: naming your constraint
-            columnNames = {"user_id", "currency"}
+            columnNames = {"email", "currency"}
         )
     }
 )
@@ -28,4 +28,7 @@ public class Account {
 
     @Column(name = "currency", nullable = false, length = 3)
     private String currency; // Default: "USD"
+
+    @Column(name = "identifier_email", nullable = false)
+    private String email; 
 }

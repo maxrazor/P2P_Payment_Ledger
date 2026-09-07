@@ -4,34 +4,35 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.SecretKey;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 
 @Component("AuthenticationFilter")
+@Slf4j
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
 
-    private final String JWT_SECRET = "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8=";
-    private static final Logger log = LoggerFactory.getLogger(AuthenticationFilter.class);
+    private final String GATEWAY_SECRET;
+    private final SecretKey signingKey;
 
-    //TODO: Use environmental variable for key in the final release
-
-    public AuthenticationFilter() {
+    public AuthenticationFilter(
+            @Value("${gateway.secret}") String GATEWAY_SECRET,
+            @Value("${jwt.secret}") String jwtSecret
+    ) {
         super(Config.class);
-    }
-
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(JWT_SECRET);
-        return Keys.hmacShaKeyFor(keyBytes);
+        this.GATEWAY_SECRET = GATEWAY_SECRET;
+        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
     @Override
@@ -41,55 +42,47 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
             log.debug("Inside the filter");
 
-            // CAVEAT CHECK: Strip any malicious pre-existing internal headers passed by the client
             request = request.mutate()
                     .headers(httpHeaders -> {
                         httpHeaders.remove("X-Authenticated-User-Id");
+                        httpHeaders.remove("X-User-Role");
+                        httpHeaders.remove("X-Gateway-Secret");
+                        httpHeaders.remove("X-Internal-Service");
                     }).build();
-
-            // Verify Authorization header presence
-            if (!request.getHeaders().containsHeader(HttpHeaders.AUTHORIZATION)) {
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
-            }
 
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
             }
 
             String token = authHeader.substring(7);
 
             log.debug("Token found");
 
-            try {
-                // Cryptographically parse token on the edge
-                Claims claims = Jwts.parser()
-                        .verifyWith(getSigningKey())
-                        .build()
-                        .parseSignedClaims(token)
-                        .getPayload();
+            Claims claims = Jwts.parser()
+                    .verifyWith(signingKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
 
-                // Inject the true, verified values into downstream headers
-                String userId = claims.getSubject();
+            String userId = claims.getSubject();
+            String role = claims.get("role", String.class); 
 
-                request = request.mutate()
-                        .header("X-Authenticated-User-Id", userId)
-                        .build();
+            ServerHttpRequest.Builder requestBuilder = request.mutate()
+                    .header("X-Authenticated-User-Id", userId)
+                    .header("X-Gateway-Secret", GATEWAY_SECRET);
 
-            } catch (Exception e) {
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
+            if (role != null) {
+                if (role.startsWith("ROLE_")) role = role.substring(5);
+                if ("ADMIN".equalsIgnoreCase(role)) requestBuilder.header("X-User-Role", "ADMIN");
             }
+
+            request = requestBuilder.build();
 
             ServerWebExchange mutatedExchange = exchange.mutate().request(request).build();
 
-            if (log.isDebugEnabled()) {
-                log.debug("Sending Request Downstream - URI: {}, Headers: {}", 
-                    mutatedExchange.getRequest().getURI(), 
-                    mutatedExchange.getRequest().getHeaders());
-            }
+            log.info("Authenticated request for User-ID: {} with Role: {} forwarded to URI: {}", 
+                userId, role != null ? role : "NONE", mutatedExchange.getRequest().getURI());
 
             return chain.filter(mutatedExchange);
         };
@@ -97,3 +90,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
     public static class Config {}
 }
+
+
+            
+
+            
+
+

@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public record TransferRequest(
     UUID sourceAccountId,
-    UUID destinationAccountId,
+    String destinationEmail,
     BigDecimal amount,
     String currency
 ) {}

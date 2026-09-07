@@ -11,11 +11,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 @EnableWebFluxSecurity // Enables WebFlux security instead of standard MVC security
 public class SecurityConfig {
 
-    //TODO: Fix CSRF
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-            .csrf(ServerHttpSecurity.CsrfSpec::disable) // Disable CSRF as we use stateless JWTs
+            .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
                 .anyExchange().permitAll()
             )

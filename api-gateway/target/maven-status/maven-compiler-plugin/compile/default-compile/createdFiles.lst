@@ -1,4 +1,6 @@
-com\dfls\api_gateway\ApiGatewayApplication.class
-com\dfls\api_gateway\config\SecurityConfig.class
 com\dfls\api_gateway\filter\AuthenticationFilter$Config.class
 com\dfls\api_gateway\filter\AuthenticationFilter.class
+com\dfls\api_gateway\exception\GlobalErrorWebExceptionHandler.class
+com\dfls\api_gateway\ApiGatewayApplication.class
+com\dfls\api_gateway\config\SecurityConfig.class
+com\dfls\api_gateway\filter\RequestLoggingFilter.class

@@ -10,24 +10,30 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.dfls.shared.dto.TransferInitiatedKafkaEvent;
+
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 @Slf4j
 public class OutboxPublisher {
 
     private final OutboxRepository outboxRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
     private static final int BATCH_SIZE = 100;
     private static final int MAX_ATTEMPTS = 10;
 
     public OutboxPublisher(OutboxRepository outboxRepository, 
-                           KafkaTemplate<String, String> kafkaTemplate, 
-                           TransactionTemplate transactionTemplate) {
+                           KafkaTemplate<String, Object> kafkaTemplate, 
+                           TransactionTemplate transactionTemplate,
+                           ObjectMapper objectMapper) {
         this.outboxRepository = outboxRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.transactionTemplate = transactionTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Scheduled(fixedDelay = 200)
@@ -40,11 +46,22 @@ public class OutboxPublisher {
                 List<OutboxEvent> claimedEvents  =
                     outboxRepository.findEventsToClaim(BATCH_SIZE);
 
+                log.debug(
+                    "Outbox batch claimed count={}",
+                    claimedEvents.size()
+                );
+
                 Instant lockedUntil =
                     Instant.now().plusSeconds(30);
 
                 for (OutboxEvent event : claimedEvents ) {
                     if (event.getAttemptCount() >= MAX_ATTEMPTS) {
+                        log.error(
+                            "Outbox event exceeded max attempts eventId={} eventType={} attempts={}",
+                            event.getId(),
+                            event.getEventType(),
+                            event.getAttemptCount()
+                        );
                         event.setStatus(OutboxStatus.FAILED);
                         event.setLastError("Max attempts exceeded");
                         continue; 
@@ -77,20 +94,46 @@ public class OutboxPublisher {
 
         List<CompletableFuture<Void>> futures = toPublish.stream().map(event -> {
             String aggregateId = String.valueOf(event.getAggregateId());
-            String payload = String.valueOf(event.getPayload());
 
-            return kafkaTemplate.send("transfer-events-topic", aggregateId, payload)
+            TransferInitiatedKafkaEvent concreteEvent = objectMapper.treeToValue(
+            event.getPayload(), 
+            TransferInitiatedKafkaEvent.class);
+
+            return kafkaTemplate.send("transfer-requests-topic", aggregateId, concreteEvent)
                 .thenAccept(result -> {
+                    log.info(
+                        "Outbox event published eventId={} eventType={} aggregateId={}",
+                        event.getId(),
+                        event.getEventType(),
+                        event.getAggregateId()
+                    );
                     event.setStatus(OutboxStatus.PUBLISHED);
+                    event.setPublishedAt(Instant.now());
                     toSave.add(event);
                 })
                 .exceptionally(ex -> {
                     if (isUnrecoverable(ex)) {
-                        log.error("CRITICAL: Poison Pill dropped! Event {} marked as FAILED.", event.getId(), ex);
+                        log.error(
+                            "Outbox event permanently failed eventId={} eventType={} aggregateId={} attempts={}",
+                            event.getId(),
+                            event.getEventType(),
+                            event.getAggregateId(),
+                            event.getAttemptCount(),
+                            ex
+                        );
                         event.setStatus(OutboxStatus.FAILED);
+                        event.setPublishedAt(Instant.now());
                         event.setLastError(ex.getMessage());
                     } else {
-                        log.warn("Temporary Kafka error for event {}. Will retry.", event.getId(), ex);
+                        log.warn(
+                            "Temporary Kafka failure; event will be retried " +
+                            "eventId={} eventType={} aggregateId={} attempt={}",
+                            event.getId(),
+                            event.getEventType(),
+                            event.getAggregateId(),
+                            event.getAttemptCount(),
+                            ex
+                        );
                         event.setLastError(ex.getMessage());
                         // status stays PROCESSING — untouched, will be reclaimed after lockedUntil expires
                     }
@@ -98,6 +141,12 @@ public class OutboxPublisher {
                     return null;
                 });
         }).toList();
+
+        log.debug(
+            "Outbox publishing batch completed claimed={} processed={}",
+            events.size(),
+            toPublish.size()
+        );
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 

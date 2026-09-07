@@ -3,12 +3,16 @@ package com.dfls.transfer_service.outbox;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.dfls.shared.event.EventType;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import tools.jackson.databind.JsonNode;
 
 @Entity
 @Table(name = "outbox_events")
@@ -30,11 +34,12 @@ public class OutboxEvent {
     @Column(name = "event_type", nullable = false)
     private EventType eventType;
 
-    @Column(columnDefinition = "jsonb", nullable = false)
-    private String payload;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payload", nullable = false)
+    private JsonNode payload;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "outbox_status", nullable = false)
+    @Column(name = "status", nullable = false)
     private OutboxStatus status;
 
     @Column(name = "created_at", nullable = false)

@@ -8,9 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.dfls.identity_service.model.User;
 
 public interface UserRepository extends JpaRepository<User, UUID>{
-    Optional<User> findByUsername(String username);
 
-    boolean existsByEmail(String username);
+    boolean existsByEmail(String email);
 
     Optional<User> findByEmail(String email);
 }
