@@ -1,0 +1,25 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 004-create-processed-events
+      author: maxim
+
+      changes:
+
+        - createTable:
+            tableName: processed_events
+
+            columns:
+
+              - column:
+                  name: event_id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: processed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false

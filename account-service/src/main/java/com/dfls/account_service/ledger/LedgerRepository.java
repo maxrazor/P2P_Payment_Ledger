@@ -11,9 +11,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface LedgerRepository extends JpaRepository<LedgerEntry, Long>{
 
-
-        // No lock here — this is a read-only derived value, safe as a
-    // reconciliation check, NOT as the concurrency-control mechanism.
     @Query("SELECT COALESCE(SUM(l.amount), 0) FROM LedgerEntry l " +
            "WHERE l.accountId = :accountId AND l.currency = :currency")
     BigDecimal sumLedgerBalance(@Param("accountId") UUID accountId,

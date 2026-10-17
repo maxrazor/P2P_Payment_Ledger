@@ -1,1 +1,9 @@
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\config\TestJacksonConfiguration.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\facade\TransferFacadeServiceTest.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\idempotency\IdempotencyAspectTest.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\integration\BaseIntegrationTest.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\integration\TransferIntegrationTest.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\outbox\OutboxPublisherTest.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\processor\TransferResultProcessorTest.java
+D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\service\TransferServiceTest.java
 D:\Maven_Project_Test\dfls-root\transfer-service\src\test\java\com\dfls\transfer_service\TransferServiceApplicationTests.java

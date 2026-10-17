@@ -1,14 +1,18 @@
 package com.dfls.api_gateway.exception;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import org.springframework.boot.webflux.error.ErrorWebExceptionHandler;
-import org.springframework.core.annotation.Order;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.core.ResolvableType;
+import org.springframework.core.codec.Encoder;
+import org.springframework.core.codec.Hints;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.json.JacksonJsonEncoder;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -17,11 +21,20 @@ import io.jsonwebtoken.JwtException;
 import io.opentelemetry.api.trace.Span;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.json.JsonMapper;
 
-@Component
-@Order(-2) // High priority: Ensures it runs before Spring's default error pages
 @Slf4j
 public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler {
+
+    private final Encoder<Object> jsonEncoder;
+
+    public GlobalErrorWebExceptionHandler(JsonMapper jsonMapper) {
+        this.jsonEncoder = new JacksonJsonEncoder(jsonMapper);
+    }
+
+    public GlobalErrorWebExceptionHandler() {
+        this.jsonEncoder = new JacksonJsonEncoder();
+    }
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
@@ -29,36 +42,37 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
             return Mono.error(ex);
         }
 
-        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+        Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(ex);
+
+        HttpStatusCode status = HttpStatus.INTERNAL_SERVER_ERROR;
         String errorCode = "INTERNAL_SERVER_ERROR";
         String message = "An unexpected error occurred";
 
-        // Handle downstream microservice failures
-        if (ex instanceof WebClientRequestException) {
-            log.error("Downstream service unavailable at: {}", exchange.getRequest().getURI(), ex);
+        if (rootCause instanceof WebClientException) {
+            log.error("Downstream service communication failure at: {}", exchange.getRequest().getURI(), ex);
             status = HttpStatus.SERVICE_UNAVAILABLE;
             errorCode = "SERVICE_UNAVAILABLE";
-            message = "Downstream service is unavailable";
+            message = "Downstream service is unavailable or returned an error";
         } 
-        // Handle expired JWTs
-        else if (ex instanceof ExpiredJwtException) {
-            log.warn("JWT expired: {}", ex.getMessage());
+        else if (rootCause instanceof ExpiredJwtException) {
+            log.warn("JWT expired on path {}: {}", exchange.getRequest().getURI().getPath(), rootCause.getMessage());
             status = HttpStatus.UNAUTHORIZED;
             errorCode = "TOKEN_EXPIRED";
             message = "Your session has expired. Please log in again.";
         } 
-        // Handle malformed/tampered JWTs
-        else if (ex instanceof JwtException || ex instanceof IllegalArgumentException) {
-            log.warn("Invalid JWT attempt: {}", ex.getMessage());
+        else if (rootCause instanceof JwtException || rootCause instanceof IllegalArgumentException) {
+            log.warn("Invalid JWT attempt on path {}: {}", exchange.getRequest().getURI().getPath(), rootCause.getMessage());
             status = HttpStatus.UNAUTHORIZED;
             errorCode = "INVALID_TOKEN";
             message = "The authentication token is invalid.";
         } 
-        // Handle standard 401s thrown from missing headers
-        else if (ex instanceof ResponseStatusException rse) {
-            status = HttpStatus.valueOf(rse.getStatusCode().value());
-            errorCode = status.name();
+        else if (rootCause instanceof ResponseStatusException rse) {
+            status = rse.getStatusCode();
+            errorCode = status instanceof HttpStatus hs ? hs.name() : "ERROR_" + status.value();
             message = rse.getReason();
+        } 
+        else {
+            log.error("Unhandled gateway exception on path: {}", exchange.getRequest().getURI().getPath(), ex);
         }
 
         return writeErrorResponse(exchange, status, errorCode, message);
@@ -66,7 +80,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
 
     private Mono<Void> writeErrorResponse(
                 ServerWebExchange exchange,
-                HttpStatus status,
+                HttpStatusCode status,
                 String error,
                 String message) {
 
@@ -74,25 +88,26 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        String traceId = Span.current().getSpanContext().getTraceId();
+        Span currentSpan = Span.current();
+        String traceId = (currentSpan != null && currentSpan.getSpanContext().isValid()) 
+                ? currentSpan.getSpanContext().getTraceId() 
+                : "UNKNOWN";
 
-        return Mono.fromCallable(() -> {
-                String body = """
-                        {
-                        "status": %d,
-                        "error": "%s",
-                        "message": "%s",
-                        "traceId": "%s"
-                        }
-                        """.formatted(
-                        status.value(),
-                        error,
-                        message,
-                        traceId
-                );
-                
-                // Wrap the bytes into WebFlux's reactive buffer factory
-                return response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        }).flatMap(buffer -> response.writeWith(Mono.just(buffer)));
+        Map<String, Object> errorResponseBody = Map.of(
+                "status", status.value(),
+                "error", error,
+                "message", message != null ? message : "No details available",
+                "traceId", traceId
+        );
+
+        return response.writeWith(
+                jsonEncoder.encode(
+                        Mono.just(errorResponseBody),
+                        response.bufferFactory(),
+                        ResolvableType.forClass(Map.class),
+                        MediaType.APPLICATION_JSON,
+                        Hints.none()
+                )
+        );
     }
 }

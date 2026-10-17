@@ -7,8 +7,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "accounts",uniqueConstraints = {
         @UniqueConstraint(
-            name = "uc_user_currency", // Optional: naming your constraint
-            columnNames = {"email", "currency"}
+            name = "uc_user_currency",
+            columnNames = {"identifier_email", "currency"}
         )
     }
 )
@@ -21,13 +21,13 @@ public class Account {
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id; // The unique Account/Wallet ID (e.g., printed on a card)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private UUID userId; // Loose logical ID reference linking back to the Identity Service
+    private UUID userId;
 
     @Column(name = "currency", nullable = false, length = 3)
-    private String currency; // Default: "USD"
+    private String currency;
 
     @Column(name = "identifier_email", nullable = false)
     private String email; 

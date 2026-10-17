@@ -1,1 +1,10 @@
+com\dfls\account_service\processor\TransferProcessorTest.class
+com\dfls\account_service\service\LedgerServiceTest.class
+com\dfls\account_service\integration\BaseIntegrationTest.class
+com\dfls\account_service\account\AccountServiceTest.class
+com\dfls\account_service\integration\TransferConcurrencyIntegrationTest.class
+com\dfls\account_service\account\InternalAccountControllerTest.class
+com\dfls\account_service\repository\LedgerRepositoryTest.class
+com\dfls\account_service\config\TestJacksonConfiguration.class
+com\dfls\account_service\outbox\OutboxPublisherTest.class
 com\dfls\account_service\AccountServiceApplicationTests.class

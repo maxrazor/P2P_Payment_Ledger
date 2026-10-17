@@ -1,8 +1,8 @@
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\config\GatewayHeaderFilter.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\config\SecurityConfig.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\controller\AuthController.java
-D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\dto\AuthResponse.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\dto\LoginRequest.java
+D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\dto\LoginResult.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\dto\RegisterRequest.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\dto\UserResponse.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\main\java\com\dfls\identity_service\exception\GlobalExceptionHandler.java

@@ -1,10 +1,10 @@
 package com.dfls.identity_service;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class IdentityServiceApplicationTests {
+import com.dfls.identity_service.integration.BaseIntegrationTest;
+
+class IdentityServiceApplicationTests extends BaseIntegrationTest {
 
 	@Test
 	void contextLoads() {

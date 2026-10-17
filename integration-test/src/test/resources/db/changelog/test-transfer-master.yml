@@ -1,0 +1,13 @@
+databaseChangeLog:
+
+  - include:
+      file: changes/001-create-transactions.yml
+      relativeToChangelogFile: true
+
+  - include:
+      file: changes/002-create-outbox-events.yml
+      relativeToChangelogFile: true
+
+  - include:
+      file: changes/003-create-processed-events.yml
+      relativeToChangelogFile: true

@@ -1,1 +1,9 @@
+com\dfls\transfer_service\idempotency\IdempotencyAspectTest.class
+com\dfls\transfer_service\config\TestJacksonConfiguration.class
+com\dfls\transfer_service\integration\BaseIntegrationTest.class
+com\dfls\transfer_service\outbox\OutboxPublisherTest.class
+com\dfls\transfer_service\service\TransferServiceTest.class
 com\dfls\transfer_service\TransferServiceApplicationTests.class
+com\dfls\transfer_service\facade\TransferFacadeServiceTest.class
+com\dfls\transfer_service\processor\TransferResultProcessorTest.class
+com\dfls\transfer_service\integration\TransferIntegrationTest.class

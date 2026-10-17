@@ -1,7 +1,12 @@
 package com.dfls.transfer_service.kafka;
 
+import java.time.Duration;
+import java.time.Instant;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.dfls.shared.dto.TransferCompletedKafkaEvent;
 import com.dfls.shared.exception.TransferNotFoundException;
@@ -11,6 +16,7 @@ import com.dfls.transfer_service.processed.ProcessedEvent;
 import com.dfls.transfer_service.processed.ProcessedEventRepository;
 import com.dfls.transfer_service.repository.TransactionRepository;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,6 +27,7 @@ public class TransferResultProcessor {
 
     private final TransactionRepository transactionRepository;
     private final ProcessedEventRepository processedEventRepository;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public void process(TransferCompletedKafkaEvent event) {
@@ -32,7 +39,6 @@ public class TransferResultProcessor {
                 event.payload().transferId()
         );
 
-        // Kafka can deliver the same event more than once
         if (processedEventRepository.existsById(event.eventId())) {
             log.info(
                 "Duplicate transfer result event ignored eventId={} transferId={}",
@@ -49,42 +55,50 @@ public class TransferResultProcessor {
                                 event.payload().transferId().toString()
                         ));
 
-        switch (event.eventType()) {
+        final TransactionStatus targetStatus;
+        final String counterName;
 
+        switch (event.eventType()) {
             case TRANSFER_COMPLETED -> {
-                    transaction.setStatus(TransactionStatus.COMPLETED);
-                    log.info(
-                        "Transfer completed transferId={} eventId={}",
-                        transaction.getId(),
-                        event.eventId()
-                    );
+                targetStatus = TransactionStatus.COMPLETED;
+                counterName = "transfers.completed";
+                log.info(
+                        "Transfer completed transferId={} eventId={}", 
+                        transaction.getId(), event.eventId());
+
             }
             case TRANSFER_REJECTED -> {
-                    transaction.setStatus(TransactionStatus.REJECTED);
-
-                    log.info(
+                targetStatus = TransactionStatus.REJECTED;
+                counterName = "transfers.rejected";
+                log.info(
                         "Transfer rejected transferId={} eventId={} reason={}",
-                        transaction.getId(),
-                        event.eventId(),
-                        event.payload().reason()
-                    );
+                        transaction.getId(), event.eventId(), event.payload().reason());
             }
-            default -> throw new IllegalArgumentException(
-                    "Unexpected event type: " + event.eventType()
-            );
+            default -> throw new IllegalArgumentException("Unexpected event type: " + event.eventType());
         }
 
-        transactionRepository.save(transaction);
+        transaction.setStatus(targetStatus);
 
-        // Same DB transaction
         processedEventRepository.save(
                 new ProcessedEvent(event.eventId())
         );
 
+        Duration latency = Duration.between(transaction.getCreatedAt(), Instant.now());
+
+        final MeterRegistry registry = this.meterRegistry;
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                registry.counter(counterName).increment();
+                registry.timer("transfers.duration").record(latency);
+                log.info("Metrics successfully tracked for completed transaction path: {}", transaction.getId());
+            }
+        });
+
         log.debug(
             "Transfer result event processed successfully eventId={} transferId={}",
-            event.eventId(),
-            transaction.getId()
+            event.eventId(), transaction.getId()
         );
     }
 }

@@ -1,0 +1,42 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 001-create-accounts
+      author: maxim
+
+      changes:
+
+        - createTable:
+            tableName: accounts
+
+            columns:
+
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: identifier_email
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: accounts
+            columnNames: identifier_email, currency
+            constraintName: uc_user_currency

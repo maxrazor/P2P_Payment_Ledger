@@ -23,6 +23,7 @@ public class AccountClient {
     private String gatewaySecret;
 
     public UUID resolveAccount(String email, String currency) {
+        log.info("Attempting to resolve account for email: {}", email);
 
         AccountResolveResponse response = restClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -30,20 +31,16 @@ public class AccountClient {
                         .queryParam("email", email)
                         .queryParam("currency", currency)
                         .build())
-                .header("X-Internal-Service", "transfer-service")
-                .header("X-Gateway-Secret", gatewaySecret) 
                 .retrieve()
                 .onStatus(status -> status.value() == 404, (request, responseStatus) -> {
-                    // This bypasses the default error handling and throws your exception
                     throw new AccountNotFoundException("Account not found for email: " + email);
                 })
                 .body(AccountResolveResponse.class);
 
-        if (response == null) {
-            throw new IllegalStateException(
-                    "Account Service returned empty response"
-            );
+        if (response == null || response.accountId() == null) {
+            throw new IllegalStateException("Account Service returned an invalid or empty response payload");
         }
+        
         log.info("Account successfully resolved with email: {}", email);
         return response.accountId();
     }

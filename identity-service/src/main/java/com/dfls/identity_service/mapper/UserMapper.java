@@ -16,11 +16,9 @@ public class UserMapper {
 
         User user = new User();
 
-        // Custom mappings from your annotations
         user.setRole(Role.ROLE_MEMBER);
         user.setActive(true);
 
-        // Standard field-to-field mappings
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setPassword(request.password());

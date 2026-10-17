@@ -11,16 +11,19 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.1</version> <!-- Current stable Spring Boot 3 variant -->
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
     <properties>
         <java.version>26</java.version>
         <spring-cloud.version>2025.1.2</spring-cloud.version>
+        <lombok.version>1.18.48</lombok.version> 
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
     </properties>
 
-    <!-- Define the sub-modules to compile -->
     <modules>
         <module>dfls-shared-dto</module>
         <module>api-gateway</module>
@@ -30,7 +33,6 @@
         <module>notification-service</module>
     </modules>
 
-    <!-- Centralized Dependency Version Management -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -40,7 +42,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Reference our internal shared module globally -->
             <dependency>
                 <groupId>com.dfls</groupId>
                 <artifactId>dfls-shared-dto</artifactId>
@@ -49,11 +50,11 @@
         </dependencies>
     </dependencyManagement>
 
-    <!-- Dependencies that EVERY single microservice inherits automatically -->
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -64,7 +65,6 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
-        <!-- Source: https://mvnrepository.com/artifact/io.opentelemetry/opentelemetry-api -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
@@ -77,23 +77,50 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        
         <plugins>
-            <!-- Every child module will inherit this compiler configuration -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.46</version>
+                            <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>run-e2e-tests</id>
+            <modules>
+                <module>integration-test</module>
+            </modules>
+        </profile>
+    </profiles>
+
 </project>

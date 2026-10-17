@@ -1,10 +1,10 @@
 package com.dfls.account_service;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class AccountServiceApplicationTests {
+import com.dfls.account_service.integration.BaseIntegrationTest;
+
+class AccountServiceApplicationTests extends BaseIntegrationTest {
 
 	@Test
 	void contextLoads() {

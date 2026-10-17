@@ -1,5 +1,6 @@
 package com.dfls.transfer_service.controller;
 
+import java.net.URI;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.dfls.shared.dto.TransferRequest;
 import com.dfls.transfer_service.model.Transaction;
@@ -32,19 +34,18 @@ public class TransferController {
                                                  @RequestBody TransferRequest request)
     {
         
-        log.info(
-            "Transfer request received with Idempotency Key: {}", 
-            idempotencyKey
-        );
+        log.info("Transfer request received with Idempotency Key: {}", idempotencyKey);
 
-        UUID accountId = transferFacadeService.resolveRecipientAccount(request.destinationEmail(), request.currency());
-        Transaction savedTransaction = transferFacadeService.handleTransfer(userId, idempotencyKey, request, accountId);
+        Transaction savedTransaction = transferFacadeService.handleTransfer(userId, idempotencyKey, request);
 
-        log.info(
-            "Transfer commited with transaction ID: {}", 
-            savedTransaction.getId()
-        );
+        log.info("Transfer commited with transaction ID: {}", savedTransaction.getId());
 
-        return ResponseEntity.ok().build();
+            URI location = ServletUriComponentsBuilder
+                    .fromCurrentRequest()
+                    .path("/{id}")
+                    .buildAndExpand(savedTransaction.getId())
+                    .toUri();
+
+        return ResponseEntity.created(location).build(); 
     }
 }

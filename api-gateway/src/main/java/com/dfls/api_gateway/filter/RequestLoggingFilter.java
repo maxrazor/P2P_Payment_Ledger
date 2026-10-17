@@ -1,7 +1,10 @@
 package com.dfls.api_gateway.filter;
 
+import java.util.Optional;
+
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -15,14 +18,12 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class RequestLoggingFilter implements GlobalFilter {
 
-    //TODO: See if this needs improvements
-
     @Override
     public Mono<Void> filter(
             ServerWebExchange exchange,
             GatewayFilterChain chain) {
 
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
 
         ServerHttpRequest request = exchange.getRequest();
 
@@ -35,15 +36,23 @@ public class RequestLoggingFilter implements GlobalFilter {
         return chain.filter(exchange)
                 .doFinally(signal -> {
 
-                    long duration =
-                            System.currentTimeMillis() - start;
+                    long durationMs = (System.nanoTime() - start) / 1_000_000;
+
+                    String status = Optional.ofNullable(exchange.getResponse().getStatusCode())
+                            .map(statusCode -> String.valueOf(statusCode.value()))
+                            .orElse("UNKNOWN");
+
+                    String targetPath = Optional.ofNullable(exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR))
+                            .map(Object::toString)
+                            .orElseGet(() -> request.getURI().getPath());
 
                     log.info(
-                            "Request completed method={} path={} status={} durationMs={}",
+                            "Request completed method={} path={} targetUrl={} status={} durationMs={}",
                             request.getMethod(),
                             request.getURI().getPath(),
-                            exchange.getResponse().getStatusCode(),
-                            duration
+                            targetPath,
+                            status,
+                            durationMs
                     );
                 });
     }

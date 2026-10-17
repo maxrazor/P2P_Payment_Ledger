@@ -10,6 +10,7 @@ com\dfls\account_service\ledger\LedgerValidator.class
 com\dfls\account_service\account\AccountService.class
 com\dfls\account_service\ledger\EntryType.class
 com\dfls\account_service\config\GatewayHeaderFilter.class
+com\dfls\account_service\kafka\KafkaConfig.class
 com\dfls\account_service\exception\GlobalExceptionHandler.class
 com\dfls\account_service\processed\ProcessedEvent.class
 com\dfls\account_service\account\Account.class
@@ -20,6 +21,8 @@ com\dfls\account_service\outbox\OutboxStatus.class
 com\dfls\account_service\ledger\LedgerEntry.class
 com\dfls\account_service\account\AccountRepository.class
 com\dfls\account_service\processed\ProcessedEventRepository.class
+com\dfls\account_service\dto\LedgerEntryResponse.class
+com\dfls\account_service\dto\PageResponse.class
 com\dfls\account_service\ledger\LedgerService.class
 com\dfls\account_service\transfer\TransferProcessor.class
 com\dfls\account_service\outbox\OutboxRepository.class

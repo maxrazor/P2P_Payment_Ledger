@@ -51,10 +51,6 @@ public class TransferProcessor {
                 event.currency()
         );
 
-        String traceId = Span.current()
-        .getSpanContext()
-        .getTraceId();
-
         if (processedEventRepository.existsByEventId(kafkaEvent.eventId())) {
             log.warn(
                 "Duplicate transfer event skipped eventId={} transferId={}",
@@ -64,7 +60,10 @@ public class TransferProcessor {
             return; 
         }
 
-        //Lock accounts in deterministic order
+        String traceId = Span.current()
+        .getSpanContext()
+        .getTraceId();
+
         UUID firstId = event.senderAccountId()
                 .compareTo(event.receiverAccountId()) < 0
                 ? event.senderAccountId()
@@ -87,18 +86,17 @@ public class TransferProcessor {
         Account receiver = first.getId().equals(event.receiverAccountId())
                 ? first
                 : second;
-    
+
         ValidationResult validation = ledgerValidator.validateTransfer(sender, receiver, event);
         if (!validation.isValid()) {
-            // Enters helper method smoothly, stays in the same transaction
             rejectTransfer(kafkaEvent, sender.getUserId(), receiver.getUserId(), traceId, event, validation.rejectionReason()); 
-            return; // Transaction commits successfully here!
+            return;
         }
 
         BigDecimal balance = ledgerRepository.sumLedgerBalance(sender.getId(), event.currency());
         if (balance.compareTo(event.amount()) < 0) {
             rejectTransfer(kafkaEvent, sender.getUserId(), receiver.getUserId(), traceId, event, "Insufficient funds");
-            return; // Transaction commits successfully here!
+            return;
         }
 
         ledgerService.createDebit(sender.getId(), event.transferId(), event.amount(), event.currency(), "Transfer DEBIT");

@@ -1,2 +1,15 @@
-#ignore vscode launch.json
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Java / Maven
+**/target/
+
+# Frontend
+**/node_modules/
+**/dist/
+
+# IDE
+.idea/
 .vscode/

@@ -1,0 +1,37 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true # Optional: handy for debugging test queries
+    properties:
+      # Fixes the Jackson 3 'tools.jackson' deserialization error natively
+      # by telling Hibernate to automatically look for any object mappers on your classpath
+      "[hibernate.type.json_format_mapper]": org.hibernate.type.format.jackson.JacksonJsonFormatMapper
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dfls_identity
+    username: postgres
+    password: weoW#$EOGIJHWt&34jto3pwij
+    driver-class-name: org.postgresql.Driver
+
+  kafka:
+    listener:
+      auto-startup: false
+    consumer:
+      group-id: "dummy-test-group" # Satisfies the missing group.id validation
+    properties:
+      "[max.block.ms]": 500         # Prevents your test app from hanging on startup
+      "[request.timeout.ms]": 500
+
+  jackson:
+    visibility:
+      field: any
+      getter: none
+      setter: none
+
+gateway:
+  secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+
+jwt:
+  secret: "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8="
+  expiration: 86400000

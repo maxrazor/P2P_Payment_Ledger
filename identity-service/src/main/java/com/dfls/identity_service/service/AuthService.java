@@ -1,22 +1,27 @@
 package com.dfls.identity_service.service;
 
+import java.util.UUID;
+
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.dfls.identity_service.dto.AuthResponse;
 import com.dfls.identity_service.dto.LoginRequest;
+import com.dfls.identity_service.dto.LoginResult;
 import com.dfls.identity_service.dto.RegisterRequest;
 import com.dfls.identity_service.dto.UserResponse;
-import com.dfls.identity_service.kafka.IdentityKafkaProducer;
 import com.dfls.identity_service.mapper.UserMapper;
 import com.dfls.identity_service.model.Role;
 import com.dfls.identity_service.model.SecurityUser;
 import com.dfls.identity_service.model.User;
 import com.dfls.identity_service.repository.UserRepository;
+import com.dfls.shared.event.UserRegisteredEvent;
 import com.dfls.shared.exception.EmailAlreadyRegisteredException;
+import com.dfls.shared.exception.UserNotFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,25 +34,24 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthenticationManager authManager;
     private final JwtService jwtService;
-    private final IdentityKafkaProducer identityKafkaProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AuthService(UserMapper userMapper, 
                         PasswordEncoder passwordEncoder, 
                         UserRepository userRepository, 
                         AuthenticationManager authManager,
                         JwtService jwtService,
-                        IdentityKafkaProducer identityKafkaProducer) 
+                        ApplicationEventPublisher eventPublisher) 
     {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.authManager = authManager;
         this.jwtService = jwtService;
-        this.identityKafkaProducer = identityKafkaProducer;
+        this.eventPublisher = eventPublisher;
     }
 
-    //TODO: Maybe make @Transactional + @TransactionalEventListener
-
+    @Transactional
     public UserResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw new EmailAlreadyRegisteredException("An account with email address " + request.email() + " already exists.");
@@ -57,16 +61,29 @@ public class AuthService {
         user.setRole(Role.ROLE_MEMBER);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
-        identityKafkaProducer.sendUserRegisteredEvent(user.getId(), user.getEmail());
+
+        eventPublisher.publishEvent(new UserRegisteredEvent(user.getId(), user.getEmail()));
+
         return userMapper.toResponse(user);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    @Transactional(readOnly = true)
+    public LoginResult login(LoginRequest request) {
         Authentication authentication = authManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.email(), request.password())
+            new UsernamePasswordAuthenticationToken(request.email(),request.password())
         );
         log.info("Successful login for user: {}", request.email());
         SecurityUser userDetails = (SecurityUser) authentication.getPrincipal();
-        return new AuthResponse(jwtService.generateToken(userDetails), userMapper.toResponse(userDetails.getUser()));
+        String token = jwtService.generateToken(userDetails);
+        UserResponse user = userMapper.toResponse(userDetails.getUser());
+        return new LoginResult(token, user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUserProfile(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with userId: " + userId));
+
+        return userMapper.toResponse(user);
     }
 }

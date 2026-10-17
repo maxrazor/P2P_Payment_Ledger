@@ -22,7 +22,7 @@ management:
 
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 spring:
   application:
@@ -38,51 +38,65 @@ spring:
     gateway:
       server:
         webflux:
+
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 5s
+
           routes:
-            # 1. Route public auth requests directly to the Identity Service
+
+            - id: identity-service-me-route
+              uri: "${IDENTITY_SERVICE_URL:http://localhost:8081}"
+              predicates:
+                - Path=/api/v1/auth/me
+              filters:
+                - name: AuthenticationFilter
+                  args: {}
+
             - id: identity-service-route
-              uri: http://localhost:8081 # Location of identity-service in dev
+              uri: "${IDENTITY_SERVICE_URL:http://localhost:8081}"
               predicates:
                 - Path=/api/v1/auth/**
               filters:
-                # Injects the secret header into the HTTP request before forwarding
-                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+                - AddRequestHeader=X-Gateway-Secret, ${GATEWAY_SECRET:$2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m}
 
-            # 2. Route protected transfer requests (Applies our custom Auth filter)
             - id: transfer-service-route
-              uri: http://localhost:8082 # Location of transfer-service in dev
+              uri: "${TRANSFER_SERVICE_URL:http://localhost:8082}"
               predicates:
                 - Path=/api/v1/transfers/**
               filters:
                 - name: AuthenticationFilter
                   args: {}
-                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+                - name: CircuitBreaker
+                  args:
+                    name: transferService
+                    fallbackUri: forward:/fallback/transfer
 
-            # 3. Route protected account/ledger requests
             - id: account-service-route
-              uri: http://localhost:8083 # Location of account-service in dev
+              uri: "${ACCOUNT_SERVICE_URL:http://localhost:8083}"
               predicates:
                 - Path=/api/v1/accounts/**
               filters:
                 - name: AuthenticationFilter
                   args: {}
-                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+                - name: CircuitBreaker
+                  args:
+                    name: accountService
+                    fallbackUri: forward:/fallback/account
 
             - id: notification-service
-              uri: http://localhost:8084
+              uri: "${NOTIFICATION_SERVICE_URL:http://localhost:8084}"
               predicates:
                 - Path=/api/v1/notifications/**
               filters:
                 - name: AuthenticationFilter
                   args: {}
-                - AddRequestHeader=X-Gateway-Secret, $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
-
 
           globalcors:
             add-to-simple-url-handler-mapping: true 
             cors-configurations:
               '[/**]':
-                allowedOrigins: "http://localhost:5173"
+                allowedOrigins: "${CORS_ALLOWED_ORIGINS:http://localhost:5173}"
                 allowedMethods:
                   - GET
                   - POST
@@ -96,8 +110,28 @@ spring:
                 allowCredentials: true
 
 jwt:
-  secret: "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8="
-  expiration: 86400000
+  secret: ${JWT_SECRET:KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8=}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 gateway:
-  secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+  secret: ${GATEWAY_SECRET:$2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+
+      accountService:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+      transferService:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3

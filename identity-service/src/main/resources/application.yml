@@ -2,11 +2,11 @@ server:
   port: 8081
 
 gateway:
-  secret: $2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m
+  secret: ${GATEWAY_SECRET:$2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m}
 
 jwt:
-  secret: "KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8="
-  expiration: 86400000
+  secret: ${JWT_SECRET:KEOV4/OPGCA17SThgUh5WDNUpqgazP0VZ7jWtyWc+o8=}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 management:
   endpoints:
@@ -20,32 +20,44 @@ management:
 
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 spring:
   application:
     name: identity-service
 
   kafka:
-    bootstrap-servers: localhost:9092 # Point to your Docker container [5]
-    
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    properties:
+      '[retry.backoff.ms]': 1000
+      '[reconnect.backoff.ms]': 1000
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       properties:
-        # ⚠️ CRITICAL FINTECH SAFETY CHECK:
-        # Tell Spring it is safe to deserialize Java classes located inside your shared package path
         '[spring.json.trusted.packages]': "com.dfls.shared.event"
         
   datasource:
-    url: jdbc:postgresql://localhost:5432/dfls_identity
-    username: postgres
-    password: weoW#$EOGIJHWt&34jto3pwij
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/dfls_account}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:weoW#$EOGIJHWt&34jto3pwij}
     driver-class-name: org.postgresql.Driver
+    
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+    open-in-view: false
     show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yml
+
+app:
+  kafka:
+    topics:
+      user-registrations: ${USER_REGISTRATION_TOPIC:user-registrations-topic}

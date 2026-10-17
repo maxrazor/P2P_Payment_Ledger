@@ -1,1 +1,4 @@
 com\dfls\notification_service\NotificationServiceApplicationTests.class
+com\dfls\notification_service\kafka\TransferResultConsumerTest.class
+com\dfls\notification_service\service\NotificationServiceTest.class
+com\dfls\notification_service\controller\NotificationControllerTest.class

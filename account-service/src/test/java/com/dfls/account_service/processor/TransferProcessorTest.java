@@ -74,7 +74,6 @@ class TransferProcessorTest {
 
     @Test
     void shouldProcessSuccessfulTransfer() {
-        // Arrange
         UUID senderId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
@@ -127,10 +126,8 @@ class TransferProcessorTest {
                 "USD"
         )).thenReturn(new BigDecimal("1500"));
 
-        // Act
         transferProcessor.process(event);
 
-        // Assert
         verify(ledgerService).createDebit(
                 eq(senderId),
                 eq(transferId),
@@ -162,7 +159,6 @@ class TransferProcessorTest {
 
     @Test
     void shouldRejectTransferWhenInsufficientFunds() {
-        // Arrange
         UUID senderId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
@@ -204,10 +200,8 @@ class TransferProcessorTest {
         when(ledgerRepository.sumLedgerBalance(senderId, "USD"))
                 .thenReturn(new BigDecimal("500"));
 
-        // Act
         transferProcessor.process(event);
 
-        // Assert
         verify(ledgerService, never())
                 .createDebit(any(), any(), any(), any(), any());
 
@@ -230,11 +224,15 @@ class TransferProcessorTest {
 
     @Test
     void shouldIgnoreDuplicateEvent() {
-        // Arrange
         UUID eventId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
         UUID senderId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
+
+        while (senderId.compareTo(receiverId) >= 0) {
+            receiverId = UUID.randomUUID();
+        }
+        
         String traceId = UUID.randomUUID().toString();
 
         TransferInitiatedKafkaEvent event = 
@@ -260,12 +258,13 @@ class TransferProcessorTest {
         when(processedEventRepository.existsByEventId(eventId))
                 .thenReturn(true);
 
-        // Act
         transferProcessor.process(event);
 
-        // Assert
         verify(accountRepository, never())
-                .findByIdForUpdate(any());
+                .findByIdForUpdate(senderId);
+
+        verify(accountRepository, never())
+                .findByIdForUpdate(receiverId);
 
         verify(ledgerService, never())
                 .createDebit(any(), any(), any(), any(), any());
@@ -286,7 +285,6 @@ class TransferProcessorTest {
 
     @Test
     void shouldRejectTransferToSameAccount() {
-        // Arrange
         UUID eventId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
@@ -325,7 +323,6 @@ class TransferProcessorTest {
         when(accountRepository.findByIdForUpdate(accountId))
                 .thenReturn(Optional.of(account));
 
-        // Act & Assert
         assertThrows(
                 InvalidTransferException.class,
                 () -> transferProcessor.process(event)
@@ -340,9 +337,8 @@ class TransferProcessorTest {
 
     @Test
     void shouldThrowWhenSenderDoesNotExist() {
-        // Arrange
-        UUID senderId = UUID.randomUUID();
-        UUID receiverId = UUID.randomUUID();
+        UUID senderId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID receiverId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID eventId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
         String traceId = UUID.randomUUID().toString();
@@ -367,13 +363,9 @@ class TransferProcessorTest {
                         )
                 );
 
-        when(processedEventRepository.existsByEventId(any()))
-                .thenReturn(false);
-
-        when(accountRepository.findByIdForUpdate(senderId))
+        when(accountRepository.findByIdForUpdate(event.payload().senderAccountId()))
                 .thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThrows(
                 AccountNotFoundException.class,
                 () -> transferProcessor.process(event)
@@ -385,12 +377,13 @@ class TransferProcessorTest {
 
     @Test
     void shouldThrowWhenReceiverDoesNotExist() {
-        // Arrange
-        UUID senderId = UUID.randomUUID();
-        UUID receiverId = UUID.randomUUID();
+        UUID senderId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID receiverId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID eventId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
         String traceId = UUID.randomUUID().toString();
+
+        Account senderAccount = new Account();
 
          TransferInitiatedKafkaEvent event = 
                 new TransferInitiatedKafkaEvent(
@@ -412,13 +405,11 @@ class TransferProcessorTest {
                         )
                 );
 
-        when(processedEventRepository.existsByEventId(any()))
-                .thenReturn(false);
-
-        when(accountRepository.findByIdForUpdate(receiverId))
+        when(accountRepository.findByIdForUpdate(event.payload().senderAccountId()))
+                .thenReturn(Optional.of(senderAccount));
+        when(accountRepository.findByIdForUpdate(event.payload().receiverAccountId()))
                 .thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThrows(
                 AccountNotFoundException.class,
                 () -> transferProcessor.process(event)
@@ -430,7 +421,6 @@ class TransferProcessorTest {
 
     @Test
     void shouldRejectCurrencyMismatch() {
-        // Arrange
         UUID eventId = UUID.randomUUID();
         UUID senderId = UUID.randomUUID();
         UUID receiverId = UUID.randomUUID();
@@ -480,7 +470,6 @@ class TransferProcessorTest {
         when(accountRepository.findByIdForUpdate(receiverId))
                 .thenReturn(Optional.of(reveiverAccount));
 
-        // Act & Assert
         assertThrows(
                 CurrencyMismatchException.class,
                 () -> transferProcessor.process(event)

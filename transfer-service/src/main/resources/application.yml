@@ -2,11 +2,11 @@ server:
   port: 8082
 
 gateway:
-  secret: '$2a$12$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m'
+  secret: ${GATEWAY_SECRET:$$2a$$12$$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m}
 
 services:
   account-service:
-    url: http://localhost:8083
+    url: ${SERVICES_ACCOUNT_SERVICE_URL:http://localhost:8083}
 
 management:
   endpoints:
@@ -20,7 +20,7 @@ management:
 
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 spring:
   application:
@@ -28,37 +28,54 @@ spring:
 
   data:
     redis:
-      host: localhost             # Change to 'localhost' if running locally
-      port: 6379                  # Default Redis port
-      password: "mytestpassword"   # The absolute password required by your server
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:mytestpassword}
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    properties:
+      '[retry.backoff.ms]': 1000
+      '[reconnect.backoff.ms]': 1000
+      
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # This serializes your JsonNode directly into a JSON bytes payload
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
 
     consumer:
-      group-id: account-service-group # Collects instances into a load-balanced consumer pool
-      auto-offset-reset: earliest     # Read from the beginning if a brand new group boots up
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      group-id: account-service-group
+      auto-offset-reset: earliest 
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
-        # Instructs the serializer NOT to send type mappings in the message headers
+        '[spring.deserializer.key.delegate.class]': org.apache.kafka.common.serialization.StringDeserializer
+        '[spring.deserializer.value.delegate.class]': org.springframework.kafka.support.serializer.JacksonJsonDeserializer
         '[spring.json.add.type.headers]': true
         '[spring.json.trusted.packages]': "*"
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/dfls_transfer
-    username: postgres
-    password: weoW#$EOGIJHWt&34jto3pwij
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/dfls_account}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:weoW#$EOGIJHWt&34jto3pwij}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+    open-in-view: false
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yml
+
+app:
+  kafka:
+    topics:
+      transfer-requests: ${TRANSFER_REQUESTS_TOPIC:transfer-requests-topic}
+
+  security:
+    internal-secret-token: ${INTERNAL_SECRET_TOKEN:8c284055dbb54b7f053a2dc612c3727c7aa36354361055f2110f4903ea8ee29c}

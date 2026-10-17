@@ -1,0 +1,26 @@
+gateway:
+  secret: ${GATEWAY_SECRET}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Define a completely explicit array scope for testing conditions
+          routes:
+            - id: "transfer-service-route"
+              uri: "http://localhost:${wiremock.server.downstream-service.port}"
+              predicates:
+                - name: "Path"
+                  args:
+                    patterns:
+                      -"/api/v1/transfers/**"
+              filters:
+                - name: "AuthenticationFilter"
+                  args: {}
+                # Crucial: Drop the production circuit breaker from this test route 
+                # so it hits WireMock directly without cascading fallbacks!

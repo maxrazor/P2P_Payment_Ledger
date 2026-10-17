@@ -1,192 +1,135 @@
 package com.dfls.account_service.outbox;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import org.apache.kafka.common.errors.SerializationException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import tools.jackson.databind.ObjectMapper;
+import com.dfls.shared.dto.TransferCompletedKafkaEvent;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class OutboxPublisherTest {
 
-    // @Mock
-    // private OutboxRepository outboxRepository;
+    @Mock
+    private OutboxRepository outboxRepository;
 
-    // @Mock
-    // private TransactionTemplate transactionTemplate;
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
-    // @Mock
-    // private KafkaTemplate<String, Object> kafkaTemplate;
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
-    // @Mock
-    // private ObjectMapper objectMapper;
+    @Mock
+    private MeterRegistry meterRegistry;
 
-    // @InjectMocks
-    // private OutboxPublisher outboxPublisher;
+    @Mock
+    private ObjectMapper objectMapper; 
 
-    // @Test
-    // void shouldMarkEventPublishedAfterSuccessfulKafkaSend() {
-    //     // Arrange
-    //     OutboxEvent event = new OutboxEvent();
-    //     event.setStatus(OutboxStatus.PENDING); //To check where is the issue
-    //     event.setAttemptCount(0);
+    @Mock
+    private Counter mockCounter;
 
-    //     when(transactionTemplate.execute(
-    //             ArgumentMatchers.<TransactionCallback<List<OutboxEvent>>>any()
-    //     )).thenAnswer(invocation -> {
-    //         TransactionCallback<List<OutboxEvent>> callback =
-    //             invocation.getArgument(0);
+    @InjectMocks
+    private OutboxPublisher outboxPublisher;
 
-    //         return callback.doInTransaction(null);
-    //     });
+    private List<OutboxEvent> testBatch;
+    private OutboxEvent testEvent;
+    private UUID eventId;
 
-    //     when(outboxRepository.findEventsToClaim(anyInt()))
-    //             .thenReturn(List.of(event));
+    @BeforeEach
+    void setUp() {
+        lenient().when(meterRegistry.counter(anyString())).thenReturn(mockCounter);
 
-    //     CompletableFuture<SendResult<String,Object>> future =
-    //             CompletableFuture.completedFuture(null);
+        eventId = UUID.randomUUID();
+        testEvent = new OutboxEvent();
+        testEvent.setId(eventId);
+        testEvent.setStatus(OutboxStatus.PENDING); 
+        testEvent.setAttemptCount(0);
+        testEvent.setAggregateId(UUID.randomUUID());
+        
+        testEvent.setPayload(mock(JsonNode.class)); 
 
-    //     when(kafkaTemplate.send(
-    //             anyString(),
-    //             anyString(),
-    //             any()
-    //     )).thenReturn(future);
+        testBatch = new ArrayList<>(List.of(testEvent));
 
-    //     // Act
-    //     outboxPublisher.publishPendingEvents();
+         lenient().when(outboxRepository.findEventsToClaim(anyInt(), any())).thenReturn(testBatch);
 
-    //     verify(outboxRepository).findEventsToClaim(anyInt());
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        });
 
-    //     verify(kafkaTemplate).send(
-    //                     anyString(),
-    //                     anyString(),
-    //                     any()
-    //                     );
+        lenient().doAnswer(invocation -> {
+            Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
+            callback.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
 
-    //     // Assert
-    //     assertEquals(
-    //             OutboxStatus.PUBLISHED,
-    //             event.getStatus()
-    //     );
+        TransferCompletedKafkaEvent mockEvent = mock(TransferCompletedKafkaEvent.class);
+        
+        lenient().when(mockEvent.traceId()).thenReturn("4bf92f3577b34da6a3ce929d0e0e4736");
 
-    //     assertNotNull(event.getPublishedAt());
+        lenient().when(objectMapper.treeToValue(any(JsonNode.class), eq(TransferCompletedKafkaEvent.class)))
+                 .thenReturn(mockEvent);
+    }
 
-    //     verify(kafkaTemplate).send(
-    //         anyString(),
-    //         anyString(),
-    //         any()
-    //     );
+    @Test
+    void shouldMarkEventPublishedAfterSuccessfulKafkaSend() throws Exception {
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
 
-    //     verify(outboxRepository)
-    //             .saveAll(anyList());
-    // }
+        outboxPublisher.publishPendingEvents();
 
-    // @Test
-    // void shouldKeepEventProcessingWhenKafkaFailsTemporarily() {
-    //     // Arrange
-    //     OutboxEvent event = new OutboxEvent();
+        verify(outboxRepository).batchUpdateStatus(
+                argThat(ids -> ids.contains(eventId)),
+                eq(OutboxStatus.PUBLISHED),
+                any(Instant.class)
+        );
+    }
 
-    //     when(transactionTemplate.execute(
-    //         ArgumentMatchers.<TransactionCallback<List<OutboxEvent>>>any()
-    //     )).thenAnswer(invocation -> {
-    //             TransactionCallback<List<OutboxEvent>> callback =
-    //                 invocation.getArgument(0);
+    @Test
+    void shouldKeepEventProcessingWhenKafkaFailsTemporarily() throws Exception {
+        CompletableFuture<org.springframework.kafka.support.SendResult<String, Object>> future = new CompletableFuture<>();
+        future.completeExceptionally(new RuntimeException("Kafka connection timeout"));
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(future);
 
-    //             return callback.doInTransaction(null);
-    //         });
+        outboxPublisher.publishPendingEvents();
 
-    //     when(outboxRepository.findEventsToClaim(anyInt()))
-    //             .thenReturn(List.of(event));
+        verify(outboxRepository, never()).batchUpdateStatus(any(), any(), any());
+        verify(outboxRepository, never()).batchUpdateStatusWithError(any(), any(), any());
+    }
 
-    //     CompletableFuture<SendResult<String, Object>> future =
-    //             new CompletableFuture<>();
+    @Test
+    void shouldMarkEventFailedAfterUnrecoverableKafkaSend() throws Exception {
+        CompletableFuture<org.springframework.kafka.support.SendResult<String, Object>> future = new CompletableFuture<>();
+        future.completeExceptionally(new SerializationException("Bad payload definition"));
+        when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(future);
 
-    //     future.completeExceptionally(
-    //             new RuntimeException("Kafka unavailable")
-    //     );
+        outboxPublisher.publishPendingEvents();
 
-    //     when(kafkaTemplate.send(
-    //             anyString(),
-    //             anyString(),
-    //             any()
-    //     )).thenReturn(future);
-
-    //     // Act
-    //     outboxPublisher.publishPendingEvents();
-
-    //     // Assert
-    //     assertEquals(
-    //             OutboxStatus.PROCESSING,
-    //             event.getStatus()
-    //     );
-
-    //     assertNull(event.getPublishedAt());
-    // }
-
-    
-
-
-    // @Test
-    // void shouldMarkEventFailedAfterFailedKafkaSend() {
-    //     // Arrange
-    //     OutboxEvent event = new OutboxEvent();
-
-    //     when(transactionTemplate.execute(
-    //         ArgumentMatchers.<TransactionCallback<List<OutboxEvent>>>any()
-    //     )).thenAnswer(invocation -> {
-    //             TransactionCallback<List<OutboxEvent>> callback =
-    //                 invocation.getArgument(0);
-
-    //             return callback.doInTransaction(null);
-    //         });
-
-    //     when(outboxRepository.findEventsToClaim(anyInt()))
-    //             .thenReturn(List.of(event));
-
-    //     CompletableFuture<SendResult<String, Object>> future =
-    //             new CompletableFuture<>();
-
-    //     future.completeExceptionally(
-    //             new SerializationException("Kafka failed")
-    //     );
-
-    //     when(kafkaTemplate.send(
-    //             anyString(),
-    //             anyString(),
-    //             any()
-    //     )).thenReturn(future);
-
-    //     // Act
-    //     outboxPublisher.publishPendingEvents();
-
-    //     // Assert
-    //     assertEquals(
-    //             OutboxStatus.FAILED,
-    //             event.getStatus()
-    //     );
-
-    //     assertNotNull(event.getPublishedAt());
-    // }
-
+        verify(outboxRepository).batchUpdateStatusWithError(
+                argThat(ids -> ids.contains(eventId)),
+                eq(OutboxStatus.FAILED),
+                anyString()
+        );
+    }
 }

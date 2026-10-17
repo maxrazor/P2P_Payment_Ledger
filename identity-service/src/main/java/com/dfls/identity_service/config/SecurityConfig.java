@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -18,7 +19,6 @@ public class SecurityConfig {
 
     private final GatewayHeaderFilter gatewayHeaderFilter;
 
-    // Inject the custom filter
     public SecurityConfig(GatewayHeaderFilter gatewayHeaderFilter) {
         this.gatewayHeaderFilter = gatewayHeaderFilter;
     }
@@ -37,12 +37,18 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable()) 
-            // 1. Add your custom gateway verification filter at the front of the chain
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
             .addFilterBefore(gatewayHeaderFilter, AuthorizationFilter.class)
             
-            // 2. Configure your standard security rules for legitimate traffic
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
+                .requestMatchers("/api/v1/auth/register", 
+                                 "/api/v1/auth/login", 
+                                 "/api/v1/auth/logout")
+                .permitAll()
+
+                .requestMatchers("/api/v1/auth/me").authenticated()
+                .anyRequest().denyAll()
             );
 
         return http.build();

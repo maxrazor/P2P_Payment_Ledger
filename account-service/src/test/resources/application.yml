@@ -1,0 +1,44 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true # Optional: handy for debugging test queries
+    properties:
+      # Fixes the Jackson 3 'tools.jackson' deserialization error natively
+      # by telling Hibernate to automatically look for any object mappers on your classpath
+      "[hibernate.type.json_format_mapper]": org.hibernate.type.format.jackson.JacksonJsonFormatMapper
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yml
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/dfls_account}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:weoW#$EOGIJHWt&34jto3pwij}
+    driver-class-name: org.postgresql.Driver
+
+  kafka:
+    listener:
+      auto-startup: false
+    consumer:
+      group-id: "dummy-test-group" # Satisfies the missing group.id validation
+    properties:
+      "[max.block.ms]": 500         # Prevents your test app from hanging on startup
+      "[request.timeout.ms]": 500
+
+  jackson:
+    visibility:
+      field: any
+      getter: none
+      setter: none
+
+gateway:
+  secret: ${GATEWAY_SECRET:$$2a$$12$$rCmDdT9GlGwITpiElVRaPu7UR8rvtV2YcdZg/eOZwJ1mqDm9Bci3m}
+
+app:
+  kafka:
+    topics:
+      transfer-requests: ${TRANSFER_RESULTS_TOPIC:transfer-results-topic}
+
+  security:
+    internal-secret-token: ${INTERNAL_SECRET_TOKEN:8c284055dbb54b7f053a2dc612c3727c7aa36354361055f2110f4903ea8ee29c}

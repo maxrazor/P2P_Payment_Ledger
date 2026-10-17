@@ -26,7 +26,6 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
     private final byte[] gatewaySecretBytes;
     private final HandlerExceptionResolver handlerExceptionResolver;
 
-    // Use constructor injection for better testability and immutability
     public GatewayHeaderFilter(
             @Value("${gateway.secret}") String gatewaySecret,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver) {
@@ -39,8 +38,7 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        // Optimize performance by skipping health checks or public static assets
-        return path.equals("/actuator/health") || path.startsWith("/public/");
+        return path.equals("/actuator/") || path.startsWith("/public/");
     }
 
     @Override
@@ -52,7 +50,6 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
         if (!isAuthorized(requestSecret)) {
             log.warn("Unauthorized direct access attempt detected from IP: {}", request.getRemoteAddr());
             
-            // Forward the custom exception directly to your global handler
             handlerExceptionResolver.resolveException(
                 request, response, null, new InsufficientAuthenticationException("Direct access not allowed."));
             return;
@@ -62,12 +59,10 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
     }
 
     private boolean isAuthorized(String requestSecret) {
-        // Prevent NullPointerException and empty secret bypasses
         if (gatewaySecretBytes.length == 0 || !StringUtils.hasText(requestSecret)) {
             return false;
         }
         
-        // Constant-time comparison using pre-allocated byte arrays
         byte[] requestSecretBytes = requestSecret.getBytes(StandardCharsets.UTF_8);
         return MessageDigest.isEqual(gatewaySecretBytes, requestSecretBytes);
     }

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.dfls.account_service.account.Account;
 import com.dfls.account_service.account.AccountRepository;
@@ -28,6 +29,7 @@ public class LedgerService {
         this.ledgerRepository = ledgerRepository;
     }
 
+    @Transactional(readOnly = true)
     public Page<LedgerEntry> getAccountStatement(UUID userId, UUID accountId, int page, int size) {
 
         log.debug(
@@ -61,6 +63,7 @@ public class LedgerService {
         return result;
     }
 
+    @Transactional(readOnly = true)
     public BigDecimal getUserBalance(UUID userId, UUID accountId) {
 
         log.debug(
@@ -94,6 +97,7 @@ public class LedgerService {
         return balance;
     }
 
+    @Transactional
     public void createDebit(
             UUID accountId,
             UUID transferId,
@@ -124,6 +128,7 @@ public class LedgerService {
         );
     }
 
+    @Transactional
     public void createCredit(
             UUID accountId,
             UUID transferId,

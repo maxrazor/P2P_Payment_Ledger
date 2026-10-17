@@ -1,1 +1,5 @@
+com\dfls\api_gateway\security\GatewaySecurityIntegrationTest.class
+com\dfls\api_gateway\security\GatewaySecurityTest.class
 com\dfls\api_gateway\ApiGatewayApplicationTests.class
+com\dfls\api_gateway\filter\AuthenticationFilterTest.class
+com\dfls\api_gateway\controller\GatewayFallbackControllerTest.class

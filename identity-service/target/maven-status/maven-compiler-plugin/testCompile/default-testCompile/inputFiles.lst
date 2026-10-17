@@ -1,1 +1,7 @@
+D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\auth\AuthServiceUnitTest.java
+D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\config\TestJacksonConfiguration.java
+D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\controller\AuthControllerUnitTest.java
 D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\IdentityServiceApplicationTests.java
+D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\integration\BaseIntegrationTest.java
+D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\integration\UserLifecycleIntegrationTest.java
+D:\Maven_Project_Test\dfls-root\identity-service\src\test\java\com\dfls\identity_service\jwt\JwtServiceTest.java

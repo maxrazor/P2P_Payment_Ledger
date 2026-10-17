@@ -1,1 +1,7 @@
 com\dfls\notification_service\NotificationServiceApplication.class
+com\dfls\notification_service\dto\NotificationType.class
+com\dfls\notification_service\service\NotificationService.class
+com\dfls\notification_service\controller\NotificationController.class
+com\dfls\notification_service\kafka\TransferResultConsumer.class
+com\dfls\notification_service\dto\NotificationMessage.class
+com\dfls\notification_service\exception\GlobalExceptionHandler.class

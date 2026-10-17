@@ -1,0 +1,17 @@
+databaseChangeLog:
+
+  - include:
+      file: db/changelog/changes/001-create-accounts.yml
+      relativeToChangelogFile: false 
+
+  - include:
+      file: db/changelog/changes/002-create-ledger-entries.yml
+      relativeToChangelogFile: false 
+
+  - include:
+      file: db/changelog/changes/003-create-outbox-events.yml
+      relativeToChangelogFile: false 
+
+  - include:
+      file: db/changelog/changes/004-create-processed-events.yml
+      relativeToChangelogFile: false 

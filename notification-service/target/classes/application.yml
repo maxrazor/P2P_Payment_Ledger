@@ -1,19 +1,38 @@
 server:
   port: 8084
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+
+  endpoint:
+    health:
+      show-details: never
+
 spring:
   application:
     name: notification-service
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    properties:
+      '[retry.backoff.ms]': 1000
+      '[reconnect.backoff.ms]': 1000
 
     consumer:
       group-id: notification-service
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      auto-offset-reset: earliest 
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
-        # Instructs the serializer NOT to send type mappings in the message headers
+        '[spring.deserializer.key.delegate.class]': org.apache.kafka.common.serialization.StringDeserializer
+        '[spring.deserializer.value.delegate.class]': org.springframework.kafka.support.serializer.JacksonJsonDeserializer
         '[spring.json.add.type.headers]': true
         '[spring.json.trusted.packages]': "*"

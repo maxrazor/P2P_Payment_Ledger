@@ -3,10 +3,17 @@ package com.dfls.identity_service.config;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -26,7 +33,6 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
     private final byte[] gatewaySecretBytes;
     private final HandlerExceptionResolver handlerExceptionResolver;
 
-    // Use constructor injection for better testability and immutability
     public GatewayHeaderFilter(
             @Value("${gateway.secret}") String gatewaySecret,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver) {
@@ -39,8 +45,7 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        // Optimize performance by skipping health checks or public static assets
-        return path.equals("/actuator/health") || path.startsWith("/public/");
+        return path.equals("/actuator/") || path.startsWith("/public/");
     }
 
     @Override
@@ -50,24 +55,39 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
         String requestSecret = request.getHeader(HEADER_GATEWAY_SECRET);
 
         if (!isAuthorized(requestSecret)) {
+
             log.warn("Unauthorized direct access attempt detected from IP: {}", request.getRemoteAddr());
             
-            // Forward the custom exception directly to your global handler
             handlerExceptionResolver.resolveException(
                 request, response, null, new InsufficientAuthenticationException("Direct access not allowed."));
             return;
+        }
+
+        String userId = request.getHeader("X-Authenticated-User-Id"); 
+        String roleStr = request.getHeader("X-User-Role");
+
+        if (StringUtils.hasText(userId)) {
+            List<GrantedAuthority> authorities = new ArrayList<>();
+            if (StringUtils.hasText(roleStr)) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + roleStr.trim().toUpperCase()));
+            }
+
+            UsernamePasswordAuthenticationToken authentication = 
+                    new UsernamePasswordAuthenticationToken(userId, null, authorities);
+            
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
         filterChain.doFilter(request, response);
     }
 
     private boolean isAuthorized(String requestSecret) {
-        // Prevent NullPointerException and empty secret bypasses
         if (gatewaySecretBytes.length == 0 || !StringUtils.hasText(requestSecret)) {
             return false;
         }
         
-        // Constant-time comparison using pre-allocated byte arrays
         byte[] requestSecretBytes = requestSecret.getBytes(StandardCharsets.UTF_8);
         return MessageDigest.isEqual(gatewaySecretBytes, requestSecretBytes);
     }

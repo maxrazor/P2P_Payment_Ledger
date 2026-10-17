@@ -46,7 +46,6 @@ class LedgerServiceTest {
 
     @Test
     void shouldReturnBalance() {
-        // Arrange
         UUID userId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
@@ -60,21 +59,17 @@ class LedgerServiceTest {
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(userAccount));
         when(ledgerRepository.sumLedgerBalance(accountId, "USD")).thenReturn(new BigDecimal("1000"));
 
-        // Act & Assert
         assertEquals(ledgerService.getUserBalance(userId, accountId), new BigDecimal("1000"));
 
-        // Verify no saves or mutations happened
         verify(accountRepository, never()).save(any());
         verify(ledgerRepository, never()).save(any());
     }
 
     @Test
     void shouldCreatePositiveCredit() {
-        // Arrange
         UUID accountId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
 
-        //Act
         ledgerService.createCredit(
                 accountId,
                 transferId,
@@ -83,10 +78,8 @@ class LedgerServiceTest {
                 "NONE"
         );
 
-        // Assert - verify that repository.save() was called once
         verify(ledgerRepository, times(1)).save(userCaptor.capture());
 
-        // Validate the captured object passed to the DB
         LedgerEntry savedEntry = userCaptor.getValue();
 
         assertEquals(accountId, savedEntry.getAccountId());
@@ -99,11 +92,9 @@ class LedgerServiceTest {
 
     @Test
     void shouldCreateNegativeDebit() {
-        // Arrange
         UUID accountId = UUID.randomUUID();
         UUID transferId = UUID.randomUUID();
 
-        // Act
         ledgerService.createDebit(
                 accountId,
                 transferId,
@@ -112,7 +103,6 @@ class LedgerServiceTest {
                 "NONE"
         );
 
-        // Assert
         verify(ledgerRepository).save(userCaptor.capture());
 
         LedgerEntry savedEntry = userCaptor.getValue();
@@ -126,14 +116,12 @@ class LedgerServiceTest {
 
     @Test
     void shouldThrowWhenAccountDoesNotExist() {
-        // Arrange
         UUID userId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
         when(accountRepository.findById(accountId))
                 .thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThrows(
                 AccountNotFoundException.class,
                 () -> ledgerService.getUserBalance(userId, accountId)
@@ -145,7 +133,6 @@ class LedgerServiceTest {
 
     @Test
     void shouldRejectAccessToAnotherUsersAccount() {
-        // Arrange
         UUID realOwnerId = UUID.randomUUID();
         UUID requestingUserId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
@@ -160,7 +147,6 @@ class LedgerServiceTest {
         when(accountRepository.findById(accountId))
                 .thenReturn(Optional.of(account));
 
-        // Act & Assert
         assertThrows(
                 AccessDeniedException.class,
                 () -> ledgerService.getUserBalance(
@@ -175,7 +161,6 @@ class LedgerServiceTest {
 
     @Test
     void shouldCalculateBalanceUsingAccountCurrency() {
-        // Arrange
         UUID userId = UUID.randomUUID();
         UUID accountId = UUID.randomUUID();
 
@@ -191,11 +176,9 @@ class LedgerServiceTest {
         when(ledgerRepository.sumLedgerBalance(accountId, "USD"))
                 .thenReturn(new BigDecimal("1000"));
 
-        // Act
         BigDecimal result =
                 ledgerService.getUserBalance(userId, accountId);
 
-        // Assert
         assertEquals(new BigDecimal("1000"), result);
 
         verify(ledgerRepository)

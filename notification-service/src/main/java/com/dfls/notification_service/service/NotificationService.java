@@ -35,10 +35,13 @@ public class NotificationService {
         emitter.onTimeout(() -> remove(userId, emitter));
         emitter.onError(ex -> remove(userId, emitter));
 
-        log.debug(
-                "SSE client connected userId={}",
-                userId
-        );
+        try {
+            emitter.send(SseEmitter.event().name("connect").data("connected"));
+            log.debug("SSE client connected userId={}", userId);
+        } catch (IOException e) {
+            remove(userId, emitter);
+            throw new IllegalStateException("Failed to initialize SSE connection stream", e);
+        }
 
         return emitter;
     }
@@ -48,27 +51,34 @@ public class NotificationService {
             NotificationMessage notification
     ) {
 
+        if (userId == null) {
+            log.warn("Cannot send notification: userId is null");
+            return;
+        }
+
         Set<SseEmitter> userEmitters = emitters.get(userId);
 
-        if (userEmitters == null) {
+        if (userEmitters == null || userEmitters.isEmpty()) {
             return;
         }
 
         for (SseEmitter emitter : userEmitters) {
             try {
                 emitter.send(
-                        SseEmitter.event()
-                                .name("notification")
-                                .data(notification)
+                    SseEmitter.event()
+                        .name("notification")
+                        .data(notification)
                 );
 
-            } catch (IOException e) {
-                log.warn(
-                        "Failed to send notification userId={}",
-                        userId,
-                        e
+            } catch (IOException e) { 
+                log.debug(
+                    "Removing disconnected SSE client userId={}",
+                    userId
                 );
 
+                remove(userId, emitter);
+            } catch (Exception e) {
+                log.error("Unexpected error sending SSE to userId={}", userId, e);
                 remove(userId, emitter);
             }
         }
@@ -78,18 +88,9 @@ public class NotificationService {
             UUID userId,
             SseEmitter emitter
     ) {
-
-        Set<SseEmitter> userEmitters =
-                emitters.get(userId);
-
-        if (userEmitters == null) {
-            return;
-        }
-
-        userEmitters.remove(emitter);
-
-        if (userEmitters.isEmpty()) {
-            emitters.remove(userId);
-        }
+        emitters.computeIfPresent(userId, (id, userEmitters) -> {
+            userEmitters.remove(emitter);
+            return userEmitters.isEmpty() ? null : userEmitters;
+        });
     }
 }

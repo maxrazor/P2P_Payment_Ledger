@@ -12,10 +12,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-
+import com.dfls.account_service.dto.LedgerEntryResponse;
+import com.dfls.account_service.dto.PageResponse;
 
 @RestController
-@RequestMapping("/api/v1/accounts")
+@RequestMapping("/api/v1/accounts/{accountId}")
 public class LedgerController {
 
     private final LedgerService ledgerService;
@@ -25,7 +26,7 @@ public class LedgerController {
         this.ledgerService = ledgerService;
     }
 
-    @GetMapping("/{accountId}/balance")
+    @GetMapping("/balance")
     public ResponseEntity<BigDecimal> getBalance(@RequestHeader("X-Authenticated-User-Id") UUID userId, 
                                                  @PathVariable UUID accountId)
     {
@@ -33,17 +34,15 @@ public class LedgerController {
         return ResponseEntity.ok(balance);
     }
 
-    @GetMapping("/{accountId}/statement")
-    public ResponseEntity<Page<LedgerEntry>> getStatement(
+    @GetMapping("/statement")
+    public ResponseEntity<PageResponse<LedgerEntryResponse>> getStatement(
             @RequestHeader("X-Authenticated-User-Id") UUID userId,
             @PathVariable UUID accountId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        
-        Page<LedgerEntry> statementPage = ledgerService.getAccountStatement(userId, accountId, page, size);
-        
-        return ResponseEntity.ok(statementPage);
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<LedgerEntry> ledgerPage = ledgerService.getAccountStatement(userId, accountId, page, size);
+        Page<LedgerEntryResponse> responsePage = ledgerPage.map(LedgerEntryResponse::from);
+        return ResponseEntity.ok(PageResponse.from(responsePage));
     }
-
-
 }

@@ -16,11 +16,8 @@ public class TransferEventConsumer {
     public TransferEventConsumer(TransferProcessor transferProcessor){
         this.transferProcessor = transferProcessor;
     }
-
-    @KafkaListener(topics = "transfer-requests-topic",
-        properties = {
-        "spring.json.value.default.type=com.dfls.shared.dto.TransferInitiatedKafkaEvent"
-    })
+    
+    @KafkaListener(topics = "transfer-requests-topic", groupId = "account-service-group")
     public void handleTransferRequested(TransferInitiatedKafkaEvent event) {
 
         log.info(

@@ -2,10 +2,11 @@ package com.dfls.account_service.account;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.dfls.account_service.ledger.LedgerRepository;
 import com.dfls.shared.dto.AccountResponse;
 import com.dfls.shared.exception.AccountNotFoundException;
 import com.dfls.shared.exception.DuplicateAccountException;
@@ -18,26 +19,21 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
 
-    public AccountService(LedgerRepository ledgerRepository, 
-                          AccountRepository accountRepository){
+    public AccountService(AccountRepository accountRepository){
         this.accountRepository = accountRepository;
     }
 
-    public List<Account> getAccountsById(UUID userId) {
+    @Transactional(readOnly = true)
+    public List<AccountResponse> getAccountsByUserId(UUID userId) {
 
-        log.debug("Fetching accounts userId={}", userId);
+        log.debug("Fetching accounts for userId={}", userId);
 
-        List<Account> accounts = accountRepository.findByUserId(userId);
-
-        log.debug(
-            "Accounts fetched userId={} count={}",
-            userId,
-            accounts.size()
-        );
-
-        return accounts;
+        return accountRepository.findByUserId(userId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
+    @Transactional
     public void createDefaultWallet(UUID userId, String defaultCurrency, String email) {
 
         log.info(
@@ -55,6 +51,7 @@ public class AccountService {
         );
     }
 
+    @Transactional
     public AccountResponse createAdditionalWallet(UUID userId, CreateAccountRequest request) {
 
         log.info(
@@ -63,19 +60,20 @@ public class AccountService {
             request.currency()
         );
 
-        if (accountRepository.existsByUserIdAndCurrency(userId, request.currency())) {
+        String normalizedCurrency = request.currency().toUpperCase().trim();
+        if (accountRepository.existsByUserIdAndCurrency(userId, normalizedCurrency)) {
 
             log.warn(
                 "Account creation rejected: account already exists " +
                 "userId={} currency={}",
                 userId,
-                request.currency()
+                normalizedCurrency
             );
 
-            throw new DuplicateAccountException("Wallet already exists for currency: " + request.currency());
+            throw new DuplicateAccountException("Wallet already exists for currency: " + normalizedCurrency);
         }
 
-        Account savedWallet = saveWalletEnvelope(userId, request.currency(), request.email());
+        Account savedWallet = saveWalletEnvelope(userId, normalizedCurrency, request.email());
 
         log.info(
             "Additional account created accountId={} userId={} currency={}",
@@ -84,18 +82,19 @@ public class AccountService {
             savedWallet.getCurrency()
         );
 
-        return new AccountResponse(savedWallet.getId(), savedWallet.getCurrency());
+        return mapToResponse(savedWallet);
     }
 
     private Account saveWalletEnvelope(UUID userId, String currency, String email) {
         Account account = Account.builder()
                 .userId(userId)
-                .currency(currency.toUpperCase())
+                .currency(currency.toUpperCase().trim())
                 .email(email)
                 .build();
         return accountRepository.save(account);
     }
 
+    @Transactional(readOnly = true)
     public UUID resolveAccount(String email, String currency) {
 
         log.debug(
@@ -105,7 +104,7 @@ public class AccountService {
         );
 
         UUID accountId = accountRepository
-                .findByEmailAndCurrency(email, currency)
+                .findByEmailAndCurrency(email, currency.toUpperCase().trim())
                 .map(Account::getId)
                 .orElseThrow(() -> {
                     
@@ -126,5 +125,12 @@ public class AccountService {
         );
 
         return accountId;
+    }
+
+    private AccountResponse mapToResponse(Account account) {
+    return new AccountResponse(
+            account.getId(),
+            account.getCurrency()
+        );
     }
 }

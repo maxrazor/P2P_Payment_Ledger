@@ -23,17 +23,11 @@ public class TransferResultConsumer {
     public void consume(TransferCompletedKafkaEvent event) {
 
         log.info(
-            "Received {} for transferId={}",
-            event.eventType(),
-            event.payload().transferId()
-        );
+            "Received {} for transferId={}", event.eventType(), event.payload().transferId());
 
         processor.process(event);
 
         log.info(
-            "Processed {} for transferId={} successfully",
-            event.eventType(),
-            event.payload().transferId()
-        );
+            "Processed {} for transferId={} successfully", event.eventType(), event.payload().transferId());
     }
 }

@@ -28,7 +28,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         log.debug("Cache miss. Fetching user from database for email: {}", email);
         
-        // Find user by email
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> {
                 log.warn("Login failed: User not found with email: {}", email);
@@ -37,13 +36,5 @@ public class CustomUserDetailsService implements UserDetailsService {
         
         return new SecurityUser(user);
     }
-
-    //TODO: Hanlde caching
-
-    // // 2. Clear cache if user updates password/roles, forcing a fresh DB read next time
-    // @CacheEvict(value = "auth_users", key = "#username")
-    // public void handleUserUpdate(String username) {
-    //     // Logic to update user in DB goes here
-    // }
 
 }

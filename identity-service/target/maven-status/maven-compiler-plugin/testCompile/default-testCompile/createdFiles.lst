@@ -1,1 +1,7 @@
+com\dfls\identity_service\integration\UserLifecycleIntegrationTest.class
+com\dfls\identity_service\integration\BaseIntegrationTest.class
+com\dfls\identity_service\config\TestJacksonConfiguration.class
+com\dfls\identity_service\auth\AuthServiceUnitTest.class
 com\dfls\identity_service\IdentityServiceApplicationTests.class
+com\dfls\identity_service\jwt\JwtServiceTest.class
+com\dfls\identity_service\controller\AuthControllerUnitTest.class

@@ -1,7 +1,6 @@
 package com.dfls.transfer_service.exception;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.dao.DataAccessException;
@@ -230,28 +229,22 @@ public class GlobalExceptionHandler {
         );
     }
 
-    private ResponseEntity<ErrorResponse> buildResponse(
-            HttpStatus status,
-            String error,
-            String message,
-            HttpServletRequest request) {
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, 
+                                                        String error, 
+                                                        String message, 
+                                                        HttpServletRequest request) {
+        String traceId = "unknown";
+        try {
+            if (Span.current() != null && Span.current().getSpanContext().isValid()) {
+                traceId = Span.current().getSpanContext().getTraceId();
+            }
+        } catch (Exception e) {
+            log.debug(
+                "Failed to extract active OpenTelemetry trace identifier context", e);
+        }
 
-        String traceId =
-                Optional.ofNullable(
-                        Span.current().getSpanContext().getTraceId()
-                ).orElse("unknown");
-
-        ErrorResponse response = new ErrorResponse(
-                Instant.now(),
-                status.value(),
-                error,
-                message,
-                request.getRequestURI(),
-                traceId
-        );
-
-        return ResponseEntity
-                .status(status)
-                .body(response);
+        return ResponseEntity.status(status).body(new ErrorResponse(
+                Instant.now(), status.value(), error, message, request.getRequestURI(), traceId
+        ));
     }
 }
