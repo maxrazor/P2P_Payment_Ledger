@@ -10,6 +10,21 @@ jobs:
     name: Backend tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: dfls_transfer   
+          POSTGRES_USER: postgres   
+          POSTGRES_PASSWORD: weoW#$EOGIJHWt&34jto3pwij
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,6 +38,10 @@ jobs:
 
       - name: Run backend tests
         run: mvn --batch-mode verify
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/dfls_transfer
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: weoW#$EOGIJHWt&34jto3pwij
 
   frontend:
     name: Frontend build
