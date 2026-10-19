@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_DB: dfls_transfer   
           POSTGRES_USER: postgres   
-          POSTGRES_PASSWORD: weoW#$EOGIJHWt&34jto3pwij
+          POSTGRES_PASSWORD: 'weoW#$EOGIJHWt&34jto3pwij'
         ports:
           - 5432:5432
         options: >-
@@ -37,10 +37,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '26'
@@ -51,11 +51,9 @@ jobs:
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/dfls_transfer
           SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: weoW#$EOGIJHWt&34jto3pwij
+          SPRING_DATASOURCE_PASSWORD: 'weoW#$EOGIJHWt&34jto3pwij'
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
-
-
 
   frontend:
     name: Frontend build
@@ -67,10 +65,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
