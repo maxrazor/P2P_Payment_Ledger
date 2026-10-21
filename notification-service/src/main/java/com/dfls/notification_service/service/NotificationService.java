@@ -31,9 +31,20 @@ public class NotificationService {
                 )
                 .add(emitter);
 
-        emitter.onCompletion(() -> remove(userId, emitter));
-        emitter.onTimeout(() -> remove(userId, emitter));
-        emitter.onError(ex -> remove(userId, emitter));
+        emitter.onCompletion(() -> {
+            log.debug("SSE completed userId={}", userId);
+            remove(userId, emitter);
+        });
+
+        emitter.onTimeout(() -> {
+            log.info("SSE timeout userId={}", userId);
+            remove(userId, emitter);
+        });
+
+        emitter.onError(ex -> {
+            log.debug("SSE error userId={}: {}", userId, ex.toString());
+            remove(userId, emitter);
+        });
 
         try {
             emitter.send(SseEmitter.event().name("connect").data("connected"));

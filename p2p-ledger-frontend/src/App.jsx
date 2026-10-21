@@ -9,7 +9,7 @@ import TransferModal from './components/TransferModal.jsx';
 import TransactionList, { formatMoney } from './components/TransactionList.jsx';
 import Notice from './components/Notice.jsx';
 
-const CURRENCIES = ['EUR', 'USD', 'RUB'];
+const CURRENCIES = ['USD', 'EUR', 'RUB'];
 
 export default function App() {
   const { user, loading: authLoading, sessionError, login, register, logout } = useAuth();
@@ -28,8 +28,12 @@ export default function App() {
     void ledger.refresh();
   }, [ledger.refresh]);
 
-  const onSseError = useCallback(() => {
-    // EventSource reconnects automatically; don't log the user out on a transient failure.
+  const onSseError = useCallback((error) => {
+    if (error?.closed) {
+      console.warn('SSE connection closed; automatic reconnection stopped.');
+    } else {
+      console.debug('SSE connection interrupted; reconnecting may occur.');
+    }
   }, []);
   useNotifications(user, { onNotification, onError: onSseError });
 
@@ -106,7 +110,7 @@ export default function App() {
           <TransactionList transactions={ledger.statementPage.content.slice(0, 5)} loading={ledger.statementLoading} />
         </section>
       </> : <section className="section statement-page">
-        <div className="statement-header"><div><span className="eyebrow">ACCOUNT STATEMENT</span><h2>{selectedAccount ? `${selectedAccount.currency} activity` : 'Select an account'}</h2><p>{selectedAccount ? `Account · ${selectedAccount.accountId}` : 'Choose an account from Overview.'}</p></div>
+        <div className="statement-header"><div><span className="eyebrow">ACCOUNT STATEMENT</span><h2>{selectedAccount ? `${selectedAccount.currency} activity` : 'Select an account'}</h2><p>{selectedAccount ? `Account · ${selectedAccount.accountId.slice(-4)}` : 'Choose an account from Overview.'}</p></div>
           <button className="secondary-btn" onClick={() => void ledger.loadStatement()} disabled={!selectedAccount || ledger.statementLoading}><RefreshCw size={16} className={ledger.statementLoading ? 'spin' : ''} /> Refresh</button></div>
         <div className="statement-account-select"><label>Account<select value={ledger.selectedAccountId} onChange={(event) => ledger.setSelectedAccountId(event.target.value)}><option value="">Select an account</option>{ledger.accounts.map((account) => <option key={account.accountId} value={account.accountId}>{account.currency} · {formatMoney(account.balance, account.currency)}</option>)}</select></label></div>
         {ledger.statementError && <ErrorPanel message={ledger.statementError} onRetry={() => void ledger.loadStatement()} />}

@@ -2,6 +2,7 @@ package com.dfls.account_service.account;
 
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,6 +25,10 @@ public class AdminLedgerController {
     public ResponseEntity<String> addBalance(@RequestHeader("X-Authenticated-User-Id") UUID userId,
                                              @RequestHeader("X-User-Role") String role,
                                              @RequestBody BalanceAdjustmentRequest request) {
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: Administrative privileges required.");
+        }
+
         ledgerService.createCredit(request.accountId(), request.transferId(), request.amount(), request.currency(), request.description());
         return ResponseEntity.ok("Balance added successfully.");
     }
@@ -32,6 +37,10 @@ public class AdminLedgerController {
     public ResponseEntity<String> subtractBalance(@RequestHeader("X-Authenticated-User-Id") UUID userId,
                                                   @RequestHeader("X-User-Role") String role,
                                                   @RequestBody BalanceAdjustmentRequest request) {
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: Administrative privileges required.");
+        }                                                    
+                                                    
         ledgerService.createDebit(request.accountId(), request.transferId(), request.amount(), request.currency(), request.description());
         return ResponseEntity.ok("Balance subtracted successfully.");
     }

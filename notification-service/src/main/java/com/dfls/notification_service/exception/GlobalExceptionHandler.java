@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -21,15 +22,14 @@ import java.util.Optional;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AsyncRequestNotUsableException.class)
-    public ResponseEntity<Void> handleAsyncRequestNotUsable(
+    public void handleAsyncRequestNotUsable(
             AsyncRequestNotUsableException ex,
             HttpServletRequest request) {
 
-        log.info("SSE streaming connection closed by client on {}", request.getRequestURI());
-
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .build();
+        log.debug(
+                "Async response no longer usable; client may have disconnected. URI={}",
+                request.getRequestURI()
+        );
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)
@@ -63,6 +63,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotAcceptable(
+            org.springframework.web.HttpMediaTypeNotAcceptableException ex,
+            HttpServletRequest request) {
+
+        return buildResponse(
+                HttpStatus.NOT_ACCEPTABLE,
+                "INVALID_ACCEPT_HEADER",
+                "Only 'text/event-stream' requests are accepted on this endpoint.",
+                request
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(
             Exception ex,
@@ -74,34 +87,6 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
                 "An unexpected error occurred",
-                request
-        );
-    }
-
-    @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestTimeoutException.class)
-    public ResponseEntity<ErrorResponse> handleAsyncTimeout(
-            org.springframework.web.context.request.async.AsyncRequestTimeoutException ex,
-            HttpServletRequest request) {
-
-        log.debug("SSE stream reached its scheduled timeout window on {}", request.getRequestURI());
-
-        return buildResponse(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "STREAM_TIMEOUT",
-                "The notification stream session has timed out. Reconnection required.",
-                request
-        );
-    }
-
-    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
-    public ResponseEntity<ErrorResponse> handleMediaTypeNotAcceptable(
-            org.springframework.web.HttpMediaTypeNotAcceptableException ex,
-            HttpServletRequest request) {
-
-        return buildResponse(
-                HttpStatus.NOT_ACCEPTABLE,
-                "INVALID_ACCEPT_HEADER",
-                "Only 'text/event-stream' requests are accepted on this endpoint.",
                 request
         );
     }

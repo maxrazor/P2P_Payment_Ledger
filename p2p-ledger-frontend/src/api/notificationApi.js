@@ -12,6 +12,13 @@ export function createNotificationConnection({ onNotification, onConnect, onErro
       console.error('Could not parse notification SSE payload.', error);
     }
   });
-  source.onerror = (event) => onError?.(event);
+  source.onerror = (event) => {
+      onError?.({
+        event,
+        state: source.readyState,
+        reconnecting: source.readyState === EventSource.CONNECTING,
+        closed: source.readyState === EventSource.CLOSED,
+      });
+  };
   return source;
 }

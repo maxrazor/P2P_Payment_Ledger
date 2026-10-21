@@ -1,6 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, CreditCard } from 'lucide-react';
 
-export function formatMoney(value, currency = 'EUR') {
+export function formatMoney(value, currency = 'USD') {
   try {
     return new Intl.NumberFormat('en', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value ?? 0));
   } catch {
@@ -23,13 +23,12 @@ export default function TransactionList({ transactions = [], large = false, load
     {transactions.map((tx, index) => {
       const amount = Number(tx.amount ?? 0);
       const incoming = amount >= 0;
-      const currency = tx.currency || 'EUR';
+      const currency = tx.currency || 'USD';
       return <div className="transaction-row" key={tx.id ?? `${tx.transactionId}-${tx.createdAt}-${index}`}>
         <div className={`transaction-icon ${incoming ? 'in' : 'out'}`}>{incoming ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</div>
         <div className="transaction-info">
           <strong>{tx.description || (incoming ? 'Incoming transfer' : 'Outgoing transfer')}</strong>
-          <span>{tx.entryType || 'LEDGER ENTRY'} · {formatDate(tx.createdAt)}</span>
-          {tx.transactionId && <span>Reference: {tx.transactionId}</span>}
+          <span style={{ fontSize: '13px' }}>{tx.entryType || 'LEDGER ENTRY'} · {formatDate(tx.createdAt)}</span>
         </div>
         <div className={`transaction-amount ${incoming ? 'positive' : 'negative'}`}>{incoming ? '+' : ''}{formatMoney(amount, currency)}</div>
       </div>;

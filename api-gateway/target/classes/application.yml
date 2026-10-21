@@ -88,6 +88,8 @@ spring:
               uri: "${NOTIFICATION_SERVICE_URL:http://localhost:8084}"
               predicates:
                 - Path=/api/v1/notifications/**
+              metadata:
+                response-timeout: -1
               filters:
                 - name: AuthenticationFilter
                   args: {}

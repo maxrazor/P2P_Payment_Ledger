@@ -38,7 +38,7 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.equals("/actuator/") || path.startsWith("/public/");
+        return path.startsWith("/actuator") || path.startsWith("/public/");
     }
 
     @Override

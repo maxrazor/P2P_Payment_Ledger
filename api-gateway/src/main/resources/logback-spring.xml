@@ -4,6 +4,13 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator>
+                <expression>logger.equals("io.opentelemetry.exporter.logging.LoggingSpanExporter") &amp;&amp; message.contains("/actuator/prometheus")</expression>
+            </evaluator>
+            <OnMatch>DENY</OnMatch>
+            <OnMismatch>NEUTRAL</OnMismatch>
+        </filter>
         <encoder>
             <pattern>
                 %d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level) %magenta([%thread]) %yellow([%X{trace_id:-no-trace},%X{span_id:-no-span}]) %cyan(%logger{36}) - %msg%n
