@@ -48,7 +48,13 @@ The system is organized as a Maven multi-module project.
 
 ```mermaid
 flowchart TB
-    Client["React Frontend"]
+    Browser["Browser"]
+    subgraph Frontend["Frontend Container"]
+        Nginx["Nginx"]
+        React["React Static Build"]
+        Nginx --> React
+    end
+
     Gateway["API Gateway<br/>Spring Cloud Gateway"]
     Identity["Identity Service"]
     Transfer["Transfer Service"]
@@ -65,7 +71,9 @@ flowchart TB
     Grafana["Grafana"]
     OTel["OpenTelemetry Java Agent"]
 
-    Client --> Gateway
+    Browser --> Nginx
+    Nginx -->|"API requests"| Gateway
+
     Gateway --> Identity
     Gateway --> Transfer
     Gateway --> Account
@@ -119,14 +127,15 @@ Each core business service has a separate PostgreSQL database. Redis supports tr
 
 | Area | Technologies |
 |---|---|
-| Language | Java 21 |
-| Backend | Spring Boot, Spring Cloud Gateway, Spring Data JPA |
+| Language | Java 26 |
+| Backend | Spring Boot, Spring WebFlux, Spring Cloud Gateway, Spring Data JPA |
 | Build | Maven |
 | Databases | PostgreSQL 16 |
 | Messaging | Apache Kafka |
-| Caching / idempotency | Redis 7 |
+| Caching / idempotency | Redis 7.2 |
 | Schema management | Liquibase |
-| Frontend | React 18, Vite, JavaScript |
+| Frontend | React 18, Vite, JavaScript, Node.js 22 |
+| Web server | Nginx |
 | Metrics | Micrometer, Prometheus, Grafana |
 | Tracing instrumentation | OpenTelemetry Java Agent |
 | Deployment | Docker, Docker Compose |
@@ -165,10 +174,7 @@ The application separates identity, account, transfer, and notification responsi
 
 Install the following:
 
-- Java 21
-- Maven, or the project's Maven Wrapper if provided
 - Docker Engine and Docker Compose
-- Node.js and npm for the frontend
 - Git
 
 ### 1. Clone the repository
@@ -214,7 +220,34 @@ Follow the logs when troubleshooting startup:
 docker compose logs -f
 ```
 
-Stop the application:
+### 4. Access the application
+
+Once the containers are running, open the frontend:
+
+[http://localhost:3000](http://localhost:3000)
+
+The frontend is served by Nginx and routes API requests to the API Gateway on port 8080.
+
+The following addresses are based on the current local Compose port mappings.
+
+| Component | Local address |
+|---|---|
+| Frontend | [http://localhost:3000](http://localhost:3000) |
+| API Gateway | [http://localhost:8080](http://localhost:8080) |
+| Identity Service | [http://localhost:8081](http://localhost:8081) |
+| Transfer Service | [http://localhost:8082](http://localhost:8082) |
+| Account Service | [http://localhost:8083](http://localhost:8083) |
+| Notification Service | [http://localhost:8084](http://localhost:8084) |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |
+| Grafana | [http://localhost:3001](http://localhost:3001) |
+
+The backend service ports are published by the current development Compose configuration. In a hardened deployment, consider exposing only the gateway and required monitoring interfaces.
+
+Document Grafana credentials and any required initial setup in the local environment configuration. Do not publish real credentials.
+
+### 5. Stop the application
+
+Stop the containers while preserving named volumes:
 
 ```bash
 docker compose down
@@ -226,9 +259,9 @@ Persistent data is stored in Docker volumes. To reset the local databases and ot
 docker compose down -v
 ```
 
-### 4. Start the frontend
+Optional: Run the frontend locally
 
-Open a separate terminal and navigate to the frontend directory:
+For frontend development outside Docker, install Node.js 22 and npm, then run:
 
 ```bash
 cd p2p-ledger-frontend
@@ -236,26 +269,7 @@ npm install
 npm run dev
 ```
 
-Configure the frontend to use the API Gateway at [http://localhost:8080](http://localhost:8080) according to the project's frontend configuration. If the frontend uses a development proxy, configure it accordingly. The frontend and backend must agree on the API base URL and authentication-cookie behavior.
-
-### 5. Access the application
-
-The following addresses are based on the current local Compose port mappings.
-
-| Component | Local address |
-|---|---|
-| Frontend | Vite development URL printed in the terminal |
-| API Gateway | [http://localhost:8080](http://localhost:8080) |
-| Identity Service | [http://localhost:8081](http://localhost:8081) |
-| Transfer Service | [http://localhost:8082](http://localhost:8082) |
-| Account Service | [http://localhost:8083](http://localhost:8083) |
-| Notification Service | [http://localhost:8084](http://localhost:8084) |
-| Prometheus | [http://localhost:9090](http://localhost:9090) |
-| Grafana | [http://localhost:3000](http://localhost:3000) |
-
-The backend service ports are published by the current development Compose configuration. In a hardened deployment, consider exposing only the gateway and required monitoring interfaces.
-
-Document Grafana credentials and any required initial setup in the local environment configuration. Do not publish real credentials.
+Configure the Vite development environment to use the API Gateway at http://localhost:8080, as required by the frontend configuration.
 
 ## Testing
 
@@ -321,11 +335,22 @@ P2P_Payment_Ledger/
 ├── notification-service/
 ├── dfls-shared-dto/
 ├── p2p-ledger-frontend/
+│   ├── src/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── package-lock.json
+│   └── vite.config.js
 ├── tools/
 ├── monitoring/
+├── docs/
+│   └── architecture.md
 ├── docker-compose.yml
 ├── pom.xml
-└── README.md
+├── README.md
+├── LICENSE
+├── .env.example
+└── .gitignore
 ```
 
 This tree shows the main modules and infrastructure directories; additional files and directories may be present in the repository.
