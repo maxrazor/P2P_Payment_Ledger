@@ -74,82 +74,28 @@ flowchart TB
 
 ### Service responsibilities
 
-  -----------------------------------------------------------------------
-  Component                           Responsibility
-  ----------------------------------- -----------------------------------
-  API Gateway                         Routes client traffic, validates
-                                      JWT authentication cookies, removes
-                                      untrusted client-supplied internal
-                                      headers, and propagates trusted
-                                      identity/role headers.
-
-  Identity Service                    Registers and authenticates users,
-                                      issues authentication cookies, and
-                                      publishes user-registration events.
-
-  Transfer Service                    Accepts transfer requests, creates
-                                      transaction records, applies
-                                      idempotency controls, writes outbox
-                                      events, and updates transaction
-                                      status from transfer-result events.
-
-  Account Service                     Creates wallets, resolves accounts,
-                                      validates transfer requests, writes
-                                      ledger entries, and publishes
-                                      transfer results through its
-                                      outbox.
-
-  Notification Service                Consumes transfer-result events and
-                                      delivers user notifications through
-                                      Server-Sent Events (SSE).
-
-  PostgreSQL                          Stores service-owned business data
-                                      in separate identity, transfer, and
-                                      account databases.
-
-  Redis                               Supports transfer request
-                                      idempotency and in-progress request
-                                      tracking.
-
-  Apache Kafka                        Carries asynchronous events between
-                                      services.
-
-  Prometheus and Grafana              Collect and visualize application
-                                      metrics.
-
-  OpenTelemetry Java Agent            Instruments services and propagates
-                                      trace context, including across
-                                      Kafka processing. Traces are
-                                      currently instrumented but are not
-                                      exported to a dedicated tracing
-                                      backend.
-  -----------------------------------------------------------------------
+| Component | Responsibility |
+|---|---|
+| **API Gateway** | Routes client traffic, validates JWT authentication cookies, removes untrusted client-supplied internal headers, and propagates trusted identity and role headers. |
+| **Identity Service** | Registers and authenticates users, issues authentication cookies, and publishes user-registration events. |
+| **Transfer Service** | Accepts transfer requests, creates transaction records, applies idempotency controls, writes outbox events, and updates transaction status from transfer-result events. |
+| **Account Service** | Creates wallets, resolves accounts, validates transfer requests, writes ledger entries, and publishes transfer results through its outbox. |
+| **Notification Service** | Consumes transfer-result events and delivers user notifications through Server-Sent Events (SSE). |
+| **PostgreSQL** | Stores service-owned business data in separate identity, transfer, and account databases. |
+| **Redis** | Supports transfer request idempotency and in-progress request tracking. |
+| **Apache Kafka** | Carries asynchronous events between services. |
+| **Prometheus and Grafana** | Collect and visualize application metrics. |
+| **OpenTelemetry Java Agent** | Instruments services and propagates trace context, including across Kafka processing. Traces are instrumented but are not currently exported to a dedicated tracing backend. |
 
 ## Event flows
 
 The application currently uses three principal Kafka topics.
 
-  ----------------------------------------------------------------------------------
-  Topic                        Publisher         Consumers         Purpose
-  ---------------------------- ----------------- ----------------- -----------------
-  `user-registrations-topic`   Identity Service  Account Service   Creates a default
-                                                                   wallet after user
-                                                                   registration.
-
-  `transfer-requests-topic`    Transfer Service  Account Service   Requests
-                               through its                         validation and
-                               outbox                              processing of a
-                                                                   transfer.
-
-  `transfer-results-topic`     Account Service   Transfer Service  Reports a
-                               through its       and Notification  completed or
-                               outbox            Service           rejected transfer
-                                                                   so the
-                                                                   transaction
-                                                                   status can be
-                                                                   updated and users
-                                                                   can be notified.
-  ----------------------------------------------------------------------------------
+| Topic | Publisher | Consumers | Purpose |
+|---|---|---|---|
+| `user-registrations-topic` | Identity Service | Account Service | Creates a default wallet after user registration. |
+| `transfer-requests-topic` | Transfer Service, through its outbox | Account Service | Requests validation and processing of a transfer. |
+| `transfer-results-topic` | Account Service, through its outbox | Transfer Service and Notification Service | Reports a completed or rejected transfer so the transaction status can be updated and users can be notified. |
 
 ## Transfer lifecycle
 
