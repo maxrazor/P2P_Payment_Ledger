@@ -1,5 +1,7 @@
 # P2P Payment Ledger
 
+[Читать на русском языке (README.ru.md)](README.ru.md)
+
 A distributed peer-to-peer payment ledger built with **Java 26, Spring Boot, Apache Kafka, PostgreSQL, and Redis**.
 
 P2P Payment Ledger is a portfolio project demonstrating how a financial-style transaction system can be designed around microservices, an append-only ledger, asynchronous event processing, and operational observability.
